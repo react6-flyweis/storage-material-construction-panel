@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+*{
+   /* Global typography styling configuration */
+   font-family: "Inter", sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600 !important;
+}
+
+body{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+a{
+  text-decoration: none;
+}
+
+.scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ==========================================================================
+   Typography Scales & Accessibility Readability System
+   Bumps small custom Tailwind utility scales to meet modern web design standard sizes.
+   ========================================================================== */
+
+/* Scale tiny calendar / badge markers */
+.text-\[8px\] {
+  font-size: 10.5px !important;
+}
+
+/* Scale tiny status / priority labels */
+.text-\[9px\] {
+  font-size: 11.5px !important;
+}
+
+/* Elevate 10px elements to standard 12px minimum accessibility size */
+.text-\[10px\] {
+  font-size: 12.5px !important;
+}
+
+/* Elevate 11px table headers / buttons to clear 13px weight */
+.text-\[11px\] {
+  font-size: 13.5px !important;
+}
+
+/* Scale standard xs size (12px -> 13.5px) for clear subtext headers */
+.text-xs {
+  font-size: 13.5px !important;
+}
+
+/* Scale standard sm size (14px -> 15px) for body text readabiltiy */
+.text-sm {
+  font-size: 15px !important;
+}
+
+/* Scale standard base size (16px -> 17px) for primary layout texts */
+.text-base {
+  font-size: 17px !important;
+}
+
