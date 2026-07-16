@@ -145,7 +145,7 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
         `}
       >
         {/* Left Icon Strip */}
-        <div className="w-[67px] h-full bg-[#1D51A4] pt-[147px] flex flex-col items-center py-6 relative shrink-0 overflow-visible">
+        <div className="w-[67px] h-full bg-[#1D51A4] pt-[130px] flex flex-col items-center py-6 relative shrink-0 overflow-visible">
           <button
             onClick={() => setOpen(false)}
             className="p-3 lg:hidden absolute top-5 left-1/2 -translate-x-1/2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
@@ -164,7 +164,7 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
               return (
                 <div
                   key={tab.key}
-                  className="relative w-full h-[74px] flex items-center justify-center overflow-visible"
+                  className="relative w-full h-[70px] flex items-center justify-center overflow-visible"
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
                 >
@@ -182,9 +182,8 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
                     <img
                       src={tab.icon}
                       alt={tab.label}
-                      className={`transition-transform hover:scale-105 ${
-                        isActive ? "relative z-10" : ""
-                      }`}
+                      className={`transition-transform hover:scale-105 ${isActive ? "relative z-10" : ""
+                        }`}
                     />
                   </button>
 
@@ -245,14 +244,13 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
         </div>
 
         {/* Right Panel - Subtabs and Info */}
-        <div 
-          className={`flex-1 transition-all duration-300 overflow-hidden ${
-            isCollapsed ? "w-0 opacity-0 invisible" : "w-auto opacity-100 visible"
-          }`}
+        <div
+          className={`flex-1 transition-all duration-300 overflow-hidden ${isCollapsed ? "w-0 opacity-0 invisible" : "w-auto opacity-100 visible"
+            }`}
         >
           <div className="pl-5 py-[14px] min-w-[191px]">
-            <div className="mb-7 pr-2">
-              <h1 className="text-[17px] font-bold text-[#1D51A4] mb-1">
+            <div className="mb-4 pr-2">
+              <h1 className="text-[17px] font-bold text-[#1D51A4]">
                 Construction User
               </h1>
               <p className="text-[14px] text-[#272C42]">const@steelpro.com</p>
@@ -293,16 +291,16 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
                             style={
                               isSubActive
                                 ? {
-                                    backgroundColor: tab.bg,
-                                    color: "#ffffff",
-                                    borderColor: tab.bg,
-                                  }
+                                  backgroundColor: tab.bg,
+                                  color: "#ffffff",
+                                  borderColor: tab.bg,
+                                }
                                 : {
-                                    backgroundColor: "#ffffff",
-                                    color: "#1a1a1a",
-                                    borderColor: "transparent",
-                                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                                  }
+                                  backgroundColor: "#ffffff",
+                                  color: "#1a1a1a",
+                                  borderColor: "transparent",
+                                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                                }
                             }
                             className="h-[44px] w-full px-4 rounded-xl text-sm font-bold transition-all flex items-center border-2"
                           >
