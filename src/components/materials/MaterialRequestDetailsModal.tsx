@@ -1,165 +1,233 @@
-import React from "react";
-import { X, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getProjectDetailsApi } from "../../api/projects.api";
+import type { Delivery, Task } from "../../types/projects.types";
 
 type MaterialRequestDetailsModalProps = {
   open: boolean;
+  projectId?: string | null;
   onClose: () => void;
+};
+
+const formatDate = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const formatStatus = (status: string) => {
+  if (!status) return "-";
+  return status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+};
+
+const getStatusBadgeClass = (status: string) => {
+  const lowercaseStatus = status?.toLowerCase() || "";
+  if (["delivered", "deal_closed", "dispatched", "ready_for_delivery"].includes(lowercaseStatus)) {
+    return "bg-green-50 text-green-700 border border-green-100";
+  }
+  if (["in_transit", "fabrication_started", "quality_inspection", "proposal_sent"].includes(lowercaseStatus)) {
+    return "bg-blue-50 text-blue-700 border border-blue-100";
+  }
+  if (["scheduled", "negotiation", "packing_bundling", "requirements_gathered"].includes(lowercaseStatus)) {
+    return "bg-yellow-50 text-yellow-700 border border-yellow-100";
+  }
+  return "bg-gray-50 text-gray-700 border border-gray-100";
+};
+
+const getPriorityClass = (priority: string) => {
+  const p = priority?.toLowerCase() || "";
+  if (p === "high") return "bg-red-50 text-red-700 border border-red-100";
+  if (p === "medium") return "bg-orange-50 text-orange-700 border border-orange-100";
+  return "bg-blue-50 text-blue-700 border border-blue-100";
 };
 
 export default function MaterialRequestDetailsModal({
   open,
+  projectId,
   onClose,
 }: MaterialRequestDetailsModalProps) {
-  if (!open) return null;
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["project-details", projectId],
+    queryFn: () => getProjectDetailsApi(projectId!),
+    enabled: !!projectId && open,
+  });
 
-  const items = [
-    { id: 1, desc: "Steel Beans", unit: "kg", qty: "5,000", remarks: "For Ground Floor" },
-    { id: 2, desc: "Cement 50 kg", unit: "Bags", qty: "300", remarks: "Ordinary Portland" },
-    { id: 3, desc: "Rebar 12 mm", unit: "kg", qty: "3,000", remarks: "Fe 500" },
-    { id: 4, desc: "Bricks (Red)", unit: "Nos", qty: "10,000", remarks: "Standard Quality" },
-    { id: 5, desc: "Sand", unit: "CFT", qty: "500", remarks: "River Sand" },
-    { id: 6, desc: "Gravel", unit: "CFT", qty: "400", remarks: "-" },
-    { id: 7, desc: "Shuttering Plywood", unit: "Sheets", qty: "50", remarks: "18 mm" },
-    { id: 8, desc: "Binding Wire", unit: "Kg", qty: "25", remarks: "GI Wire" },
-  ];
+  const responseData = data?.data?.data;
+  const project = responseData?.project;
+  const deliveries = responseData?.deliveries || [];
+  const tasks = responseData?.tasks || [];
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="bg-white rounded-xl w-full max-w-[650px] flex flex-col max-h-full shadow-xl animate-in fade-in zoom-in duration-200">
+      <div className="bg-white rounded-xl w-full max-w-[700px] flex flex-col max-h-[90vh] shadow-xl animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">Material Request Details</h2>
+          <h2 className="text-lg font-bold text-gray-900">Project & Construction Details</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Content */}
-        <div className="overflow-y-auto px-8 py-6 custom-scrollbar">
-          {/* Status Badge */}
-          <div className="mb-6 mt-2">
-             <span className="bg-[#FFF8E6] text-[#D97706] px-3 py-1 rounded-md text-sm font-medium">
-                Pending
-              </span>
-          </div>
-
-          {/* Grid Details */}
-          <div className="grid grid-cols-2 gap-y-6 mb-8">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Request ID</p>
-              <p className="text-base font-bold text-gray-900">MR-2025-0031</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Priority</p>
-              <span className="bg-[#FEF2F2] text-[#EF4444] px-3 py-1 rounded-md text-sm font-medium inline-block">
-                High
-              </span>
-            </div>
-
-            <div className="col-span-1">
-              <p className="text-sm text-gray-500 mb-1">Project / Site</p>
-              <p className="text-base font-bold text-gray-900">Downtown Office Complex</p>
-              <p className="text-sm text-gray-500 mt-0.5">Construction Site A</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Status</p>
-              <span className="bg-[#FFF8E6] text-[#D97706] px-3 py-1 rounded-md text-sm font-medium inline-block">
-                Pending
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 col-span-2 gap-4 mt-2">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Requested By</p>
-                <p className="text-base font-bold text-gray-900">John Smith</p>
-                <p className="text-sm text-gray-500">Site Engineer</p>
+        <div className="overflow-y-auto px-8 py-6 custom-scrollbar flex-1">
+          {isLoading ? (
+            /* Skeleton Loader */
+            <div className="animate-pulse space-y-6 py-4">
+              <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-3.5 bg-gray-200 rounded w-1/3"></div>
+                    <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Request Date</p>
-                <p className="text-base font-bold text-gray-900">May 19,2025</p>
-                <p className="text-sm text-gray-500">04:30 PM</p>
+              <div className="border-t border-gray-100 pt-6 space-y-4">
+                <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+                <div className="h-20 bg-gray-100 rounded"></div>
               </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Required By</p>
-                <p className="text-base font-bold text-gray-900">May 22,2025</p>
+              <div className="border-t border-gray-100 pt-6 space-y-4">
+                <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+                <div className="h-20 bg-gray-100 rounded"></div>
               </div>
             </div>
-          </div>
-
-          {/* Requested Items */}
-          <div className="mb-6">
-            <h3 className="text-base font-bold text-gray-900 mb-4">Requested Items (8)</h3>
-            <div className="overflow-x-auto overflow-visible">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-sm text-gray-900 border-b border-gray-100">
-                    <th className="pb-3 pr-4 font-bold">#</th>
-                    <th className="pb-3 pr-6 font-bold">Item Description</th>
-                    <th className="pb-3 pr-6 font-bold">Unit</th>
-                    <th className="pb-3 pr-6 font-bold">Requested Qty</th>
-                    <th className="pb-3 font-bold">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {items.map((item) => (
-                    <tr key={item.id} className="text-sm">
-                      <td className="py-4 text-gray-500">{item.id}</td>
-                      <td className="py-4 text-gray-600 pr-6">{item.desc}</td>
-                      <td className="py-4 text-gray-500 pr-6">{item.unit}</td>
-                      <td className="py-4 text-gray-600 pr-6">{item.qty}</td>
-                      <td className="py-4 text-gray-500">{item.remarks}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          ) : error ? (
+            <div className="text-center py-10 text-red-500 font-medium">
+              Failed to load project details. Please try again.
             </div>
-          </div>
-
-          {/* Request Notes */}
-          <div className="mb-6">
-            <h3 className="text-base font-bold text-gray-900 mb-2">Request Notes</h3>
-            <p className="text-sm text-gray-500">
-              Additional materials required for columns ans slab casting on ground floor.
-            </p>
-          </div>
-
-          {/* Attachments */}
-          <div className="mb-8">
-            <h3 className="text-base font-bold text-gray-900 mb-3">Attachment (2)</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <AttachmentItem icon={<FileSpreadsheet className="w-5 h-5 text-emerald-600" />} name="Material_List_xlsx" size="12KB" color="bg-emerald-50" />
-              <AttachmentItem icon={<FileText className="w-5 h-5 text-red-500" />} name="Site_Drawing.Pdf" size="2.4 MB" color="bg-red-50" />
+          ) : !project ? (
+            <div className="text-center py-10 text-gray-500 font-medium">
+              No project details found.
             </div>
-          </div>
+          ) : (
+            <div>
+              {/* Status Badge */}
+              <div className="mb-6 mt-2">
+                <span className={`px-3 py-1 rounded-md text-sm font-semibold ${getStatusBadgeClass(project.lifecycleStatus)}`}>
+                  {formatStatus(project.lifecycleStatus)}
+                </span>
+              </div>
 
-          {/* Footer Action */}
-          <div className="pt-8 flex justify-center">
-            <button className="px-12 py-2.5 border border-red-500 text-red-500 font-medium rounded-md hover:bg-red-50 transition-colors">
-              Cancel Request
-            </button>
-          </div>
+              {/* Grid Details */}
+              <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8">
+                <div>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Project ID</p>
+                  <p className="text-base font-bold text-gray-900">{project.jobId}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Building Type</p>
+                  <p className="text-base font-bold text-gray-900 capitalize">{project.buildingType || "-"}</p>
+                </div>
+
+                <div className="col-span-1">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Project / Site Name</p>
+                  <p className="text-base font-bold text-gray-900">
+                    {project.projectName || `${project.buildingType || "Project"} - ${project.location || "Site"}`}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-0.5">{project.location || "No location listed"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Buildings Count</p>
+                  <p className="text-base font-bold text-gray-900">{project.numberOfBuildings ?? "-"}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">End Date</p>
+                  <p className="text-base font-bold text-gray-900">{formatDate(project.endDate)}</p>
+                </div>
+                {project.customerId && (
+                  <div>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Customer</p>
+                    <p className="text-base font-bold text-gray-900">
+                      {project.customerId.firstName} {project.customerId.lastName || ""}
+                    </p>
+                    <p className="text-xs text-gray-500">{project.customerId.email}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Deliveries */}
+              <div className="border-t border-gray-100 pt-6 mb-6">
+                <h3 className="text-base font-bold text-gray-900 mb-4">Deliveries ({deliveries.length})</h3>
+                {deliveries.length === 0 ? (
+                  <p className="text-sm text-gray-500">No deliveries scheduled for this project.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[500px]">
+                      <thead>
+                        <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                          <th className="pb-3 pr-4">Delivery #</th>
+                          <th className="pb-3 pr-4">Status</th>
+                          <th className="pb-3 pr-4">Date</th>
+                          <th className="pb-3">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {deliveries.map((delivery: Delivery) => (
+                          <tr key={delivery._id} className="text-sm">
+                            <td className="py-3 text-gray-900 font-semibold">{delivery.deliveryNumber}</td>
+                            <td className="py-3 pr-4">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(delivery.status)}`}>
+                                {formatStatus(delivery.status)}
+                              </span>
+                            </td>
+                            <td className="py-3 text-gray-500">{formatDate(delivery.deliveryDate)}</td>
+                            <td className="py-3 text-gray-500 truncate max-w-[200px]">{delivery.description || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Tasks */}
+              <div className="border-t border-gray-100 pt-6 mb-6">
+                <h3 className="text-base font-bold text-gray-900 mb-4">Tasks ({tasks.length})</h3>
+                {tasks.length === 0 ? (
+                  <p className="text-sm text-gray-500">No tasks assigned to this project.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[500px]">
+                      <thead>
+                        <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                          <th className="pb-3 pr-4">Task Title</th>
+                          <th className="pb-3 pr-4">Priority</th>
+                          <th className="pb-3 pr-4">Status</th>
+                          <th className="pb-3">Due Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {tasks.map((task: Task) => (
+                          <tr key={task._id} className="text-sm">
+                            <td className="py-3 text-gray-900 font-semibold pr-4">{task.title}</td>
+                            <td className="py-3 pr-4">
+                              <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${getPriorityClass(task.priority)}`}>
+                                {task.priority}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(task.status)}`}>
+                                {formatStatus(task.status)}
+                              </span>
+                            </td>
+                            <td className="py-3 text-gray-500">{formatDate(task.dueDate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-function AttachmentItem({ icon, name, size, color }: { icon: React.ReactNode, name: string, size: string, color: string }) {
-  return (
-    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow cursor-pointer">
-      <div className="flex items-center gap-3 overflow-hidden">
-        <div className={`w-10 h-10 ${color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-          {icon}
-        </div>
-        <div className="overflow-hidden">
-          <p className="text-sm font-medium text-gray-700 truncate">{name}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{size}</p>
-        </div>
-      </div>
-      <div className="p-1.5 hover:bg-gray-50 rounded-lg transition-colors ml-1">
-        <Download className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-      </div>
-    </div>
-  );
-}
-
