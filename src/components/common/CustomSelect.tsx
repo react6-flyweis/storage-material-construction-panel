@@ -13,6 +13,8 @@ type CustomSelectProps = {
   width?: string;
   upperSide?: boolean;
   searchable?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
 };
 
 export default function CustomSelect({
@@ -23,6 +25,8 @@ export default function CustomSelect({
   width = "150px",
   upperSide = false,
   searchable,
+  disabled = false,
+  loading = false,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -49,29 +53,37 @@ export default function CustomSelect({
   return (
     <div ref={ref} className="relative" style={{ width }}>
       <button
+        disabled={disabled || loading}
         onClick={() => setOpen(!open)}
-        className="
+        className={`
           w-full bg-white px-4 h-[40px]
           rounded-[8px] border
           flex items-center justify-between
           text-sm
-        "
+          ${disabled || loading ? "opacity-50 cursor-not-allowed bg-gray-50" : ""}
+        `}
       >
-        <span className="truncate text-[#111827]">{selectedLabel}</span>
+        <span className="truncate text-[#111827]">
+          {loading ? "Loading..." : selectedLabel}
+        </span>
 
-        <svg
-          className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
+        {loading ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#1D7BD8] border-r-transparent border-b-transparent border-l-transparent" />
+        ) : (
+          <svg
+            className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        )}
       </button>
 
       {open && (
