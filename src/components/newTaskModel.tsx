@@ -1,5 +1,11 @@
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import CustomSelect from "./common/CustomSelect";
+import ProjectSelector from "./common/ProjectSelector";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createTaskApi } from "../api/projects.api";
 
 type IssueReportingModalProps = {
   open: boolean;
@@ -7,17 +13,11 @@ type IssueReportingModalProps = {
   onSubmit: (data: any) => void;
 };
 
-const projectOptions = [
-  { label: "Downtown Office Complex", value: "Downtown Office Complex" },
-  { label: "Residential Tower A", value: "Residential Tower A" },
-  { label: "Shopping Mall Renovation", value: "Shopping Mall Renovation" },
-  { label: "Industrial Warehouse", value: "Industrial Warehouse" },
-];
-
 const assigneeOptions = [
-  { label: "John Doe", value: "john" },
-  { label: "Sarah Smith", value: "sarah" },
-  { label: "Michael Lee", value: "michael" },
+  { label: "Emily Carter", value: "6a4e5c37b38b0e8f5be3f94e" },
+  { label: "Construction Test User", value: "6a59dfec849c41f88e90f5f8" },
+  { label: "Admin User", value: "6a4e5c37b38b0e8f5be3f94a" },
+  { label: "Unassigned", value: "null" },
 ];
 
 const priorityOptions = [
@@ -32,64 +32,94 @@ const statusOptions = [
   { label: "Done", value: "done" },
 ];
 
+const createTaskSchema = z.object({
+  taskName: z.string().min(1, "Task name is required"),
+  selectedProject: z.string().min(1, "Project is required"),
+  assignedTo: z.string().min(1, "Assignee is required"),
+  priority: z.string().min(1, "Priority is required"),
+  taskStatus: z.string().min(1, "Status is required"),
+  deadline: z.string().min(1, "Deadline is required"),
+  description: z.string().min(1, "Description is required"),
+});
+
+type CreateTaskFormValues = z.infer<typeof createTaskSchema>;
+
 export default function NewTaskModel({
   open,
   onClose,
   onSubmit,
 }: IssueReportingModalProps) {
-  if (!open) return null;
+  const [serverError, setServerError] = useState("");
 
-  const [taskName, setTaskName] = useState("");
-  const [selectedProject, setSelectedProject] = useState("PRJ-001");
-  const [assignedTo, setAssignedTo] = useState("john");
-  const [priority, setPriority] = useState("medium");
-  const [taskStatus, setTaskStatus] = useState("todo");
-  const [deadline, setDeadline] = useState("");
-  const [description, setDescription] = useState("");
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CreateTaskFormValues>({
+    resolver: zodResolver(createTaskSchema),
+    defaultValues: {
+      taskName: "",
+      selectedProject: "",
+      assignedTo: "null",
+      priority: "medium",
+      taskStatus: "todo",
+      deadline: "",
+      description: "",
+    },
+  });
 
-  const [error, setError] = useState(""); 
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: createTaskApi,
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      onSubmit({
+        taskName: variables.title,
+        project: variables.leadId,
+        assignedTo: variables.assignedTo,
+        priority: variables.priority,
+        status: variables.status === "in_progress" ? "inProgress" : variables.status,
+        deadline: variables.dueDate,
+        description: variables.description,
+      });
+      onClose();
+      reset();
+      setServerError("");
+    },
+    onError: (err: unknown) => {
+      const responseErr = err as { response?: { data?: { message?: string } } };
+      const errMsg = responseErr?.response?.data?.message
+        || (err instanceof Error ? err.message : "Failed to create task");
+      setServerError(errMsg);
+    },
+  });
 
-  const handleCreate = () => {
-    if (
-      !taskName.trim() ||
-      !selectedProject ||
-      !assignedTo ||
-      !priority ||
-      !taskStatus ||
-      !deadline ||
-      !description.trim()
-    ) {
-      setError("Please fill all required fields!");
-      return;
-    }
-
-    const data = {
-      taskName,
-      project: selectedProject,
-      assignedTo,
-      priority,
-      status: taskStatus,
-      deadline,
-      description,
-    };
-
-    onSubmit(data);
-    onClose();
-
-    setTaskName("");
-    setSelectedProject("PRJ-001");
-    setAssignedTo("unassigned");
-    setPriority("medium");
-    setTaskStatus("todo");
-    setDeadline("");
-    setDescription("");
-    setError("");
+  const onFormSubmit = (values: CreateTaskFormValues) => {
+    mutation.mutate({
+      title: values.taskName,
+      description: values.description,
+      leadId: values.selectedProject,
+      assignedTo: values.assignedTo === "null" ? null : values.assignedTo,
+      priority: values.priority,
+      status: values.taskStatus === "inProgress" ? "in_progress" : values.taskStatus,
+      dueDate: values.deadline,
+    });
   };
+
+  const handleCancel = () => {
+    reset();
+    setServerError("");
+    onClose();
+  };
+
+  if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
+      onClick={handleCancel}
     >
       <div
         className="w-[96%] max-h-[98vh] max-w-[550px] bg-white rounded-xl shadow-lg overflow-auto scroll-hide"
@@ -97,35 +127,43 @@ export default function NewTaskModel({
       >
         <div className="lg:px-6 px-3 py-4 border-b">
           <h2 className="text-lg font-semibold text-[#111827]">New Task</h2>
-          {error && (
-            <p className="text-sm text-red-600 mt-2">{error}</p>
+          {serverError && (
+            <p className="text-sm text-red-600 mt-2 font-medium">{serverError}</p>
           )}
         </div>
 
-        <div className="px-6 py-4 space-y-3">
+        <form onSubmit={handleSubmit(onFormSubmit)} className="px-6 py-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-[#111827]">Task Name</label>
               <input
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
+                {...register("taskName")}
                 placeholder="Enter"
-                className="mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm"
+                className={`mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm ${errors.taskName ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                  }`}
               />
+              {errors.taskName && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.taskName.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Project
               </label>
-              <CustomSelect
-                title="Select Project"
-                options={projectOptions}
-                value={selectedProject}
-                onChange={setSelectedProject}
-                width="100%"
-                searchable
+              <Controller
+                name="selectedProject"
+                control={control}
+                render={({ field }) => (
+                  <ProjectSelector
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
+              {errors.selectedProject && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.selectedProject.message}</p>
+              )}
             </div>
           </div>
 
@@ -134,25 +172,37 @@ export default function NewTaskModel({
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Assigned To
               </label>
-              <CustomSelect
-                title="Select Assignee"
-                options={assigneeOptions}
-                value={assignedTo}
-                onChange={setAssignedTo}
-                width="100%"
-                searchable
+              <Controller
+                name="assignedTo"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    title="Select Assignee"
+                    options={assigneeOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    width="100%"
+                    searchable
+                  />
+                )}
               />
+              {errors.assignedTo && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.assignedTo.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827]">Deadline</label>
               <input
                 type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
+                {...register("deadline")}
                 placeholder="dd - mm - yyyy"
-                className="mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm"
+                className={`mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm ${errors.deadline ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                  }`}
               />
+              {errors.deadline && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.deadline.message}</p>
+              )}
             </div>
           </div>
 
@@ -161,55 +211,78 @@ export default function NewTaskModel({
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Priority
               </label>
-              <CustomSelect
-                title="Select Priority"
-                options={priorityOptions}
-                value={priority}
-                onChange={setPriority}
-                width="100%"
+              <Controller
+                name="priority"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    title="Select Priority"
+                    options={priorityOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    width="100%"
+                  />
+                )}
               />
+              {errors.priority && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.priority.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Status
               </label>
-              <CustomSelect
-                title="Select Status"
-                options={statusOptions}
-                value={taskStatus}
-                onChange={setTaskStatus}
-                width="100%"
+              <Controller
+                name="taskStatus"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    title="Select Status"
+                    options={statusOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    width="100%"
+                  />
+                )}
               />
+              {errors.taskStatus && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.taskStatus.message}</p>
+              )}
             </div>
           </div>
 
           <div>
             <label className="text-sm text-[#111827]">Description</label>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...register("description")}
               placeholder="Describe the work"
               rows={4}
-              className="mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm"
+              className={`mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm ${errors.description ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                }`}
             />
+            {errors.description && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{errors.description.message}</p>
+            )}
           </div>
-        </div>
 
-        <div className="px-6 py-3 border-t flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg bg-[#F3F4F6] text-[#111827]"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            className="px-6 py-2 rounded-lg bg-[#2563EB] text-white"
-          >
-            Create Task
-          </button>
-        </div>
+          <div className="pt-3 border-t flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-6 py-2 rounded-lg bg-[#F3F4F6] text-[#111827]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="px-6 py-2 rounded-lg bg-[#2563EB] text-white flex items-center gap-2 disabled:opacity-50"
+            >
+              {mutation.isPending ? "Creating..." : "Create Task"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
