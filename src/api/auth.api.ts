@@ -8,6 +8,13 @@ export const loginApi = (payload: {
 }) => {
   return axiosInstance.post("/api/v1/user/loginWithPhone", payload);
 };
+
+export const loginWithEmailApi = (payload: {
+  email?: string;
+  password?: string;
+}) => {
+  return axiosInstance.post("/auth/login", payload);
+};
 export const signupApi = (payload: {
   rePassword?: string;
   region: string;
@@ -16,4 +23,12 @@ export const signupApi = (payload: {
   mobileNumber?: string;
 }) => {
   return axiosInstance.post("/api/v1/user/signup", payload);
+};
+
+export const refreshApi = (refreshToken: string) => {
+  return axiosInstance.post("/auth/refresh", { refreshToken });
+};
+
+export const logoutApi = () => {
+  return axiosInstance.post("/auth/logout");
 };
