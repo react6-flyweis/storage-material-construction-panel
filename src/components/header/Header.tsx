@@ -5,6 +5,8 @@ import SearchIcon from "../../assets/searchIcon.svg";
 import Logo from "../../assets/steel building depot logo file Final without BG.png";
 import { useSearch } from "../../context/SearchContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
+import { logoutApi } from "../../api/auth.api";
 
 type Props = {
   count?: number;
@@ -23,6 +25,7 @@ export default function Header({ count, onToggleSidebar, isPanelCollapsed, onPan
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,8 +43,15 @@ export default function Header({ count, onToggleSidebar, isPanelCollapsed, onPan
     };
   }, []);
 
-  const handleSignOut = () => {
-    navigate("/");
+  const handleSignOut = async () => {
+    try {
+      await logoutApi();
+    } catch (e) {
+      console.error("Logout API failed", e);
+    } finally {
+      logout();
+      navigate("/");
+    }
   };
 
   return (
