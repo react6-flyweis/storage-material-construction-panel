@@ -27,3 +27,17 @@ export const loginSchema = z.discriminatedUnion("mode", [
 ]);
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
+
+export const loginWithEmailSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Invalid email address"),
+  password: z
+    .string()
+    .trim()
+    .min(1, "Password is required"),
+});
+
+export type LoginWithEmailInput = z.infer<typeof loginWithEmailSchema>;
