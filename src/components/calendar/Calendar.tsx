@@ -2,11 +2,44 @@ import React from "react";
 import dayjs from "dayjs";
 import AddDeliveryDrawer from "../materials/AddDeliveryDrawer";
 import DeliveryDetailsModal from "../materials/DeliveryDetailsModal";
+import { useQuery } from "@tanstack/react-query";
+import { getCalendarApi } from "../../api/projects.api";
 
-export default function Calendar() {
+const statusColors: Record<string, string> = {
+  bidding_sent: "#3B82F6", // blue
+  carrier_selected: "#F59E0B", // amber
+  confirmed: "#10B981", // green
+  in_transit: "#8B5CF6", // purple
+  scheduled: "#EC4899", // pink
+  delivered: "#10B981", // green
+};
+
+const formatStatus = (status: string) => {
+  if (!status) return "-";
+  return status.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+};
+
+interface CalendarProps {
+  leadId?: string;
+}
+
+export default function Calendar({ leadId }: CalendarProps) {
   const [toggle, setToggle] = React.useState(false);
   const [showDetails, setShowDetails] = React.useState(false);
-  const [currentMonth, setCurrentMonth] = React.useState(dayjs("2025-01-01"));
+  const [currentMonth, setCurrentMonth] = React.useState(dayjs());
+  const [selectedDate, setSelectedDate] = React.useState(dayjs());
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["calendar-deliveries", currentMonth.month() + 1, currentMonth.year(), leadId],
+    queryFn: () =>
+      getCalendarApi({
+        month: currentMonth.month() + 1,
+        year: currentMonth.year(),
+        leadId: leadId || undefined,
+      }),
+  });
+
+  const calendarData = data?.data?.data?.calendar || {};
 
   const daysInMonth = currentMonth.daysInMonth();
   const firstDayOfMonth = currentMonth.startOf("month").day();
@@ -28,31 +61,19 @@ export default function Calendar() {
     days.push({ day: i, current: true });
   }
 
-  const events: Record<number, { title: string; color: string }[]> = {
-    5: [{ title: "Column C1-C8", color: "#3B82F6" }],
-    6: [{ title: "Steel Beams", color: "#3B82F6" }],
-    7: [{ title: "Slab S1", color: "#3B82F6" }],
-    8: [{ title: "MEP Ducts", color: "#3B82F6" }],
-    12: [{ title: "Window Frames", color: "#3B82F6" }],
-    13: [{ title: "Brick Walls", color: "#3B82F6" }],
-    15: [{ title: "Elevator Unit", color: "#3B82F6" }],
-    19: [
-      { title: "Facade Panels", color: "#3B82F6" },
-      { title: "Staircase Structure", color: "#3B82F6" },
-      { title: "Overall Project", color: "#3B82F6" },
-    ],
-    20: [{ title: "MEP Equipment", color: "#3B82F6" }],
-    22: [{ title: "Interior Doors", color: "#3B82F6" }],
-    28: [{ title: "Ceiling Works", color: "#3B82F6" }],
-    30: [{ title: "Paint & Finishes", color: "#3B82F6" }],
-  };
+  const selectedDateStr = selectedDate.format("YYYY-MM-DD");
+  const deliveriesForSelectedDate = calendarData[selectedDateStr] || [];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       <div className="flex-1 rounded-xl border   border-gray-100 shadow-sm overflow-hidden flex flex-col min-w-0">
         <div className="p-4 sm:p-6 border-b border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <button
-            onClick={() => setCurrentMonth(dayjs())}
+            onClick={() => {
+              const today = dayjs();
+              setCurrentMonth(today);
+              setSelectedDate(today);
+            }}
             className="bg-gray-50 px-4 py-1.5 rounded-lg text-sm font-bold text-gray-700 border border-gray-200 w-full sm:w-auto hover:bg-gray-100 transition-colors"
           >
             Today
@@ -134,46 +155,58 @@ export default function Calendar() {
             </div>
           ))}
 
-          {days.map((item, idx) => (
-            <div
-              key={idx}
-              className={`min-h-[80px] sm:min-h-[120px] p-1 sm:p-2 border-r border-b border-gray-50 last:border-r-0 ${item.current && item.day === 19
-                ? "bg-blue-50 ring-2 ring-blue-600 ring-inset z-10"
-                : ""
-                }`}
-            >
-              <div className="flex justify-center mb-1 sm:mb-2">
-                <span
-                  className={`text-[10px] sm:text-sm font-bold ${!item.current
-                    ? "text-gray-300"
-                    : item.day === 19
-                      ? "bg-blue-600 text-white w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center"
-                      : "text-gray-900"
-                    }`}
-                >
-                  {item.day}
-                </span>
-              </div>
+          {days.map((item, idx) => {
+            const isSelected = item.current && currentMonth.date(item.day).isSame(selectedDate, 'day');
+            const dateStr = item.current ? currentMonth.date(item.day).format("YYYY-MM-DD") : "";
+            const dayDeliveries = dateStr ? (calendarData[dateStr] || []) : [];
 
-              <div className="space-y-1">
-                {item.current &&
-                  events[item.day]?.map((event, eIdx) => (
-                    <div
-                      key={eIdx}
-                      className="flex items-center gap-1 px-1 py-0.5 rounded transition-colors hover:bg-white/50"
-                    >
+            return (
+              <div
+                key={idx}
+                onClick={() => item.current && setSelectedDate(currentMonth.date(item.day))}
+                className={`min-h-[80px] sm:min-h-[120px] p-1 sm:p-2 border-r border-b border-gray-50 last:border-r-0 cursor-pointer ${
+                  isSelected ? "bg-blue-50 ring-2 ring-blue-600 ring-inset z-10" : ""
+                }`}
+              >
+                <div className="flex justify-center mb-1 sm:mb-2">
+                  <span
+                    className={`text-[10px] sm:text-sm font-bold ${
+                      !item.current
+                        ? "text-gray-300"
+                        : isSelected
+                        ? "bg-blue-600 text-white w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center"
+                        : "text-gray-900"
+                    }`}
+                  >
+                    {item.day}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  {item.current &&
+                    dayDeliveries.slice(0, 3).map((delivery) => (
                       <div
-                        className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: event.color }}
-                      />
-                      <span className="text-[8px] sm:text-[10px] font-bold text-gray-700 truncate">
-                        {event.title}
-                      </span>
+                        key={delivery.deliveryId}
+                        className="flex items-center gap-1 px-1 py-0.5 rounded transition-colors hover:bg-white/50"
+                      >
+                        <div
+                          className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: statusColors[delivery.status] || "#3B82F6" }}
+                        />
+                        <span className="text-[8px] sm:text-[10px] font-bold text-gray-700 truncate">
+                          {delivery.description || delivery.deliveryNumber}
+                        </span>
+                      </div>
+                    ))}
+                  {item.current && dayDeliveries.length > 3 && (
+                    <div className="text-[8px] sm:text-[10px] font-medium text-gray-400 pl-1">
+                      +{dayDeliveries.length - 3} more
                     </div>
-                  ))}
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -181,7 +214,7 @@ export default function Calendar() {
         <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-gray-900">
-              Monday, May 19 ,2025
+              {selectedDate.format("dddd, MMMM D, YYYY")}
             </h3>
           </div>
 
@@ -208,59 +241,70 @@ export default function Calendar() {
           </div>
 
           <div className="space-y-4">
-            {[
-              {
-                title: "Facade Panels- Level 1 to 5",
-                loc: "Building A- Front Elevation",
-              },
-              {
-                title: "Staircase Structure- Block A",
-                loc: "Building A- Staircase 1 & 2",
-              },
-              {
-                title: "Facade Panels- Level 1 to 5",
-                loc: "Building A- Front Elevation",
-              },
-            ].map((delivery, i) => (
-              <div
-                onClick={() => setShowDetails(true)}
-                key={i}
-                className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:border-blue-200 transition-colors"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      {delivery.title}
-                    </p>
-                    <p className="text-[11px] text-gray-400 font-medium">
-                      Section/Location
-                    </p>
-                    <p className="text-xs font-bold text-gray-700">
-                      {delivery.loc}
-                    </p>
+            {isLoading ? (
+              <p className="text-xs text-gray-500 text-center py-4">Loading deliveries...</p>
+            ) : error ? (
+              <p className="text-xs text-red-500 text-center py-4">Failed to load deliveries</p>
+            ) : deliveriesForSelectedDate.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">No deliveries on this date</p>
+            ) : (
+              deliveriesForSelectedDate.map((delivery) => (
+                <div
+                  onClick={() => setShowDetails(true)}
+                  key={delivery.deliveryId}
+                  className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:border-blue-200 transition-colors cursor-pointer"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        {delivery.description || delivery.deliveryNumber}
+                      </p>
+                      <p className="text-[11px] text-gray-400 font-medium mt-1">
+                        Project / Job ID
+                      </p>
+                      <p className="text-xs font-bold text-gray-700">
+                        {delivery.project?.projectName || delivery.project?.jobId || "No Project"}
+                      </p>
+                      {delivery.project?.location && (
+                        <>
+                          <p className="text-[11px] text-gray-400 font-medium mt-1">
+                            Location
+                          </p>
+                          <p className="text-xs font-bold text-gray-700">
+                            {delivery.project.location}
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex justify-between items-end">
-                  <div>
-                    <p className="text-[11px] text-gray-400 font-medium">
-                      Delivery Date
-                    </p>
-                    <p className="text-xs font-bold text-gray-900">
-                      May 19, 2025
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-gray-400 font-medium mb-0.5">
-                      Status
-                    </p>
-                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-md">
-                      On Schedule
-                    </span>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-[11px] text-gray-400 font-medium">
+                        Delivery Date
+                      </p>
+                      <p className="text-xs font-bold text-gray-900">
+                        {selectedDate.format("MMM D, YYYY")}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-gray-400 font-medium mb-0.5">
+                        Status
+                      </p>
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                        style={{
+                          color: statusColors[delivery.status] || "#3B82F6",
+                          backgroundColor: `${statusColors[delivery.status] || "#3B82F6"}15`,
+                        }}
+                      >
+                        {formatStatus(delivery.status)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <button className="w-full mt-6 py-3 text-sm font-bold text-blue-600 flex items-center justify-center gap-2 border-t border-gray-50">
