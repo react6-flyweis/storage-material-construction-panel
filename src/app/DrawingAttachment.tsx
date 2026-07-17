@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import SearchIcon from "../assets/searchIcon.svg";
 import PlusIcon from "../assets/plusicon.svg";
 import PdfIcon from "../assets/pdficon.svg";
@@ -8,97 +8,8 @@ import DrawingModel from "../components/drawingModel";
 import DrawingPreviewModal from "../components/drawingPreviewModel";
 import { useSearch } from "../context/SearchContext";
 import SuccessModal from "../components/common/SuccessModal";
-const initialDummyProjects = [
-  {
-    name: "ABC Logistics Warehouse",
-    code: "PEB-1021",
-    uploadedBy: "Rahul Sharma",
-    location: "Pune, Maharashtra",
-    updatedOn: "25-January-2026",
-    files: [
-      {
-        id: "PEB-1021-1",
-        name: "Architectural Plans.pdf",
-        size: "15.2 MB",
-        status: "Pending Review",
-        key: "Pending",
-      },
-      {
-        id: "PEB-1021-2",
-        name: "Structural Drawings.dwg",
-        size: "15.2 MB",
-        status: "Approved",
-        key: "Approved",
-      },
-      {
-        id: "PEB-1021-3",
-        name: "Specifications.docx",
-        size: "15.2 MB",
-        status: "Revision Required",
-        key: "Revision",
-      },
-    ],
-  },
-  {
-    name: "Metro Cast Factory Shed",
-    code: "PEB-0998",
-    uploadedBy: "Rahul Sharma",
-    location: "Ahmedabad, Gujarat",
-    updatedOn: "25-April-2025",
-    files: [
-      {
-        id: "PEB-0998-1",
-        name: "Architectural Plans.pdf",
-        size: "15.2 MB",
-        status: "Approved",
-        key: "Approved",
-      },
-      {
-        id: "PEB-0998-2",
-        name: "Structural Drawings.dwg",
-        size: "15.2 MB",
-        status: "Approved",
-        key: "Approved",
-      },
-      {
-        id: "PEB-0998-3",
-        name: "Specifications.docx",
-        size: "15.2 MB",
-        status: "Approved",
-      },
-    ],
-  },
-  {
-    name: "Pebson Agro Storage",
-    code: "PEB-0872",
-    uploadedBy: "Rahul Sharma",
-    location: "Indore, MP",
-    updatedOn: "25-April-2025",
-    files: [
-      {
-        id: "PEB-0872-1",
-        name: "Architectural Plans.pdf",
-        size: "15.2 MB",
-        status: "Approved",
-        key: "Approved",
-      },
-      {
-        id: "PEB-0872-2",
-        name: "Structural Drawings.dwg",
-        size: "15.2 MB",
-        status: "Approved",
-        key: "Approved",
-      },
-      {
-        id: "PEB-0872-3",
-        name: "Specifications.docx",
-        size: "15.2 MB",
-        status: "Approved",
-        key: "Approved",
-      },
-    ],
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { getDrawingsApi } from "../api/projects.api";
 
 type UploadedFile = {
   id: string;
@@ -121,18 +32,58 @@ const statusStyle: Record<string, string> = {
   "Pending Review": "bg-yellow-100 text-yellow-700",
   Approved: "bg-green-100 text-green-700",
   "Revision Required": "bg-red-100 text-red-600",
+  Drawing: "bg-blue-100 text-blue-700",
+  Contract: "bg-purple-100 text-purple-700",
+  Approval: "bg-green-100 text-green-700",
 };
 
 export default function DrawingAttachment() {
   const [openDrawingPreviewModel, setDrawingPreviewModel] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const { search } = useSearch();
   const [localSearch, setLocalSearch] = useState("");
-  const [projects, setProjects] = useState<Project[]>(initialDummyProjects);
+  const [localProjects, setLocalProjects] = useState<Project[]>([]);
   const [pendingData, setPendingData] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
   const [openDrawingModel, setDrawingModel] = useState(false);
+
+  const { data: drawingsData, isLoading } = useQuery({
+    queryKey: ["drawings"],
+    queryFn: getDrawingsApi,
+  });
+
+  const projects = useMemo(() => {
+    const apiProjects: Project[] = (drawingsData?.data?.data?.projects || []).map((p) => ({
+      name: p.projectName || "Project —",
+      code: p.projectId || p.leadId || "—",
+      uploadedBy: p.uploadedBy || "—",
+      location: p.location || "—",
+      updatedOn: p.lastUpdate ? new Date(p.lastUpdate).toLocaleDateString("en-GB") : "—",
+      files: (p.documents || []).map((d) => ({
+        id: d._id,
+        name: d.name,
+        size: "-",
+        status: d.type ? d.type.charAt(0).toUpperCase() + d.type.slice(1) : "Approved",
+        key: d.url,
+      })),
+    }));
+
+    let merged = [...apiProjects];
+    for (const localProj of localProjects) {
+      const existingIdx = merged.findIndex((p) => p.code === localProj.code);
+      if (existingIdx > -1) {
+        merged[existingIdx] = {
+          ...merged[existingIdx],
+          updatedOn: localProj.updatedOn,
+          files: [...localProj.files, ...merged[existingIdx].files],
+        };
+      } else {
+        merged = [localProj, ...merged];
+      }
+    }
+    return merged;
+  }, [drawingsData, localProjects]);
 
   const onDrawingSubmit = (data: any) => {
     setPendingData(data);
@@ -148,6 +99,7 @@ export default function DrawingAttachment() {
       setPendingData(null);
     }
   };
+
   const filteredProjects = projects
     .map((project) => {
       const query = `${search} ${localSearch}`.trim().toLowerCase();
@@ -195,7 +147,7 @@ export default function DrawingAttachment() {
       key: URL.createObjectURL(file),
     };
 
-    setProjects((prev) => {
+    setLocalProjects((prev) => {
       const projectExists = prev.find(
         (project) => project.code === projectCode
       );
@@ -206,7 +158,7 @@ export default function DrawingAttachment() {
             ? {
               ...project,
               updatedOn: new Date().toLocaleDateString("en-GB"),
-              files: [newFile, ...project.files], // 🔥 top me
+              files: [newFile, ...project.files],
             }
             : project
         );
@@ -224,6 +176,7 @@ export default function DrawingAttachment() {
       return [newProject, ...prev];
     });
   };
+
 
   return (
     <>
@@ -372,11 +325,15 @@ export default function DrawingAttachment() {
                 </div>
               </div>
             ))}
-            {filteredProjects.length === 0 && (
+            {isLoading ? (
+              <p className="text-center text-sm text-[#6B7280] py-8">
+                Loading drawings...
+              </p>
+            ) : filteredProjects.length === 0 ? (
               <p className="text-center text-sm text-[#6B7280] py-8">
                 No projects found
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
