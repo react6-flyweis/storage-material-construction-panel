@@ -3,6 +3,22 @@ export interface AuthPayload {
   password: string;
 }
 
+export interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface LoginResponseData {
+  accessToken: string;
+  refreshToken: string;
+  role: string;
+  user: User;
+}
+
 export interface AuthResponse {
-  token: string;
+  success: boolean;
+  message: string;
+  data: LoginResponseData;
 }
