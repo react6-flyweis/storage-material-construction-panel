@@ -7,38 +7,49 @@ import FolderIcon from "../assets/activeproject.svg";
 import MoneyIcon from "../assets/righttick.svg";
 import BoxIcon from "../assets/clockicon.svg";
 import ShieldIcon from "../assets/safetyscoreicon.svg";
-
-const stats: StatItem[] = [
-  {
-    key: "activeProjects",
-    title: "Total Tasks",
-    value: 56,
-    icon: FolderIcon,
-  },
-  {
-    key: "completionRate",
-    title: "Completed",
-    value: 29,
-    icon: MoneyIcon,
-  },
-  {
-    key: "pendingMaterials",
-    title: "In Progress",
-    value: 13,
-    icon: BoxIcon,
-  },
-  {
-    key: "safetyScore",
-    title: "Overdue",
-    value: 3,
-    icon: ShieldIcon,
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { getTasksApi } from "../api/projects.api";
 
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState<"Task Management" | "Progress Tracker">(
     "Task Management"
   );
+
+  const { data: tasksData, isLoading } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: getTasksApi,
+  });
+
+  const apiStats = tasksData?.data?.data?.stats;
+  const tasksList = tasksData?.data?.data?.tasks || [];
+
+  const stats: StatItem[] = [
+    {
+      key: "totalTasks",
+      title: "Total Tasks",
+      value: apiStats?.total ?? 0,
+      icon: FolderIcon,
+    },
+    {
+      key: "completed",
+      title: "Completed",
+      value: apiStats?.done ?? 0,
+      icon: MoneyIcon,
+    },
+    {
+      key: "inProgress",
+      title: "In Progress",
+      value: apiStats?.inProgress ?? 0,
+      icon: BoxIcon,
+    },
+    {
+      key: "overdue",
+      title: "Overdue",
+      value: apiStats?.overdue ?? 0,
+      icon: ShieldIcon,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -73,7 +84,7 @@ export default function Tasks() {
         <StatsOverview stats={stats} />
       </div>
       {activeTab === "Task Management" && (
-        <TaskBoard />
+        <TaskBoard tasks={tasksList} isLoading={isLoading} />
       )}
       {activeTab === "Progress Tracker" && (
         <ProgressTracker />
@@ -81,3 +92,4 @@ export default function Tasks() {
     </div>
   );
 }
+
