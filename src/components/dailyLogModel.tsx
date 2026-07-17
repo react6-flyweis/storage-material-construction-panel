@@ -1,46 +1,148 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import CustomSelect from "./common/CustomSelect";
+import ProjectSelector from "./common/ProjectSelector";
 import UploadCameraIcon from "../assets/uploadcameraicon.svg";
+import { createWorkLogApi, getTasksApi, getProjectsApi } from "../api/projects.api";
 
 type DailyLogModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void; // parent ko data bhejne ke liye
+  onSubmit: (data: any) => void;
 };
 
-const projectOptions = [
-  { label: "Downtown Office Complex", value: "Downtown Office Complex" },
-  { label: "Residential Tower A", value: "Residential Tower A" },
-  { label: "Shopping Mall Renovation", value: "Shopping Mall Renovation" },
-  { label: "Industrial Warehouse", value: "Industrial Warehouse" },
-];
+const dailyWorkLogSchema = z.object({
+  date: z.string().min(1, "Date is required"),
+  selectedProject: z.string().min(1, "Project is required"),
+  taskId: z.string().nullable().optional(),
+  progress: z.preprocess(
+    (val) => (val === "" ? undefined : Number(val)),
+    z.number({ error: "Progress must be a number" })
+      .min(0, "Progress must be at least 0")
+      .max(100, "Progress cannot exceed 100")
+  ),
+  description: z.string().min(1, "Description is required"),
+  issues: z.string().optional(),
+});
 
-const taskOptions = [
-  { label: "Foundation Work", value: "Foundation Work" },
-  { label: "Electrical Installation", value: "Electrical Installation" },
-  { label: "Plumbing Work", value: "Plumbing Work" },
-  { label: "Roofing", value: "Roofing" },
-];
+type DailyWorkLogFormValues = z.infer<typeof dailyWorkLogSchema>;
 
 export default function DailyLogModel({
   open,
   onClose,
   onSubmit,
 }: DailyLogModalProps) {
-  if (!open) return null;
-
-  // ✅ individual states
-  const [date, setDate] = useState("");
-  const [project, setProject] = useState("All Projects");
-  const [task, setTask] = useState("All Tasks");
-  const [progress, setProgress] = useState("");
-  const [description, setDescription] = useState("");
-  const [issues, setIssues] = useState("");
+  const [serverError, setServerError] = useState("");
   const [file, setFile] = useState<File | null>(null);
 
-  const [error, setError] = useState("");
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(dailyWorkLogSchema),
+    defaultValues: {
+      date: "",
+      selectedProject: "",
+      taskId: "null",
+      progress: undefined,
+      description: "",
+      issues: "",
+    },
+  });
 
-  // ✅ handle file upload
+  const selectedProject = watch("selectedProject");
+
+  // Reset task choice when project changes
+  useEffect(() => {
+    setValue("taskId", "null");
+  }, [selectedProject, setValue]);
+
+  // Fetch projects list so we can lookup the project name for local onSubmit fallback
+  const { data: projectsData } = useQuery({
+    queryKey: ["projects-selector-list"],
+    queryFn: () => getProjectsApi({ page: 1, limit: 100 }),
+    enabled: open,
+  });
+
+  // Fetch tasks list
+  const { data: tasksData } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: getTasksApi,
+    enabled: open,
+  });
+
+  const allTasks = tasksData?.data?.data?.tasks || [];
+  const filteredTasks = allTasks.filter(
+    (t) => t.leadId?._id === selectedProject
+  );
+
+  const taskOptions = filteredTasks.map((t) => ({
+    label: t.title,
+    value: t._id,
+  }));
+  taskOptions.unshift({ label: "None / General Work", value: "null" });
+
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: createWorkLogApi,
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+
+      const selectedProjectName = projectsData?.data?.data?.projects?.find(
+        (p) => p._id === variables.leadId
+      )?.projectName || "Unknown Project";
+
+      const selectedTaskTitle = allTasks.find(
+        (t) => t._id === variables.taskId
+      )?.title || "Daily Work Log";
+
+      onSubmit({
+        task: selectedTaskTitle,
+        project: selectedProjectName,
+        description: variables.description,
+        progress: variables.progress,
+      });
+
+      onClose();
+      reset();
+      setFile(null);
+      setServerError("");
+    },
+    onError: (err: unknown) => {
+      const responseErr = err as { response?: { data?: { message?: string } } };
+      const errMsg = responseErr?.response?.data?.message
+        || (err instanceof Error ? err.message : "Failed to create daily work log");
+      setServerError(errMsg);
+    },
+  });
+
+  const onFormSubmit = (values: DailyWorkLogFormValues) => {
+    mutation.mutate({
+      leadId: values.selectedProject,
+      taskId: values.taskId === "null" ? null : (values.taskId || null),
+      date: values.date,
+      progress: values.progress,
+      description: values.description,
+      photos: [],
+      issues: values.issues || "",
+    });
+  };
+
+  const handleCancel = () => {
+    reset();
+    setFile(null);
+    setServerError("");
+    onClose();
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -53,47 +155,12 @@ export default function DailyLogModel({
     }
   };
 
-  const handleSubmit = () => {
-    if (
-      !date ||
-      !project ||
-      !task ||
-      !progress ||
-      !description.trim() ||
-      !issues.trim()
-    ) {
-      setError("Please fill all required fields!");
-      return;
-    }
-
-    const data = {
-      date,
-      project,
-      task,
-      progress,
-      description,
-      issues,
-      fileName: file?.name || null,
-    };
-
-    onSubmit(data);
-    onClose();
-
-    // reset all
-    setDate("");
-    setProject("All Projects");
-    setTask("All Tasks");
-    setProgress("");
-    setDescription("");
-    setIssues("");
-    setFile(null);
-    setError("");
-  };
+  if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
+      onClick={handleCancel}
     >
       <div
         className="w-[96%] max-h-[98vh] max-w-[550px] bg-white rounded-xl shadow-lg overflow-auto scroll-hide"
@@ -103,33 +170,43 @@ export default function DailyLogModel({
           <h2 className="text-lg font-semibold text-[#111827]">
             Daily Work Log
           </h2>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {serverError && (
+            <p className="text-sm text-red-600 mt-2 font-medium">{serverError}</p>
+          )}
         </div>
 
-        <div className="px-6 py-4 space-y-3">
+        <form onSubmit={handleSubmit(onFormSubmit)} className="px-6 py-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-[#111827]">Date</label>
               <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm"
+                {...register("date")}
+                className={`mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm ${errors.date ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                  }`}
               />
+              {errors.date && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.date.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Project
               </label>
-              <CustomSelect
-                title="Select Project"
-                options={projectOptions}
-                value={project}
-                onChange={setProject}
-                width="100%"
-                searchable
+              <Controller
+                name="selectedProject"
+                control={control}
+                render={({ field }) => (
+                  <ProjectSelector
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
+              {errors.selectedProject && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.selectedProject.message}</p>
+              )}
             </div>
           </div>
 
@@ -138,45 +215,55 @@ export default function DailyLogModel({
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Task
               </label>
-              <CustomSelect
-                title="Select Task"
-                options={taskOptions}
-                value={task}
-                onChange={setTask}
-                width="100%"
-                searchable
+              <Controller
+                name="taskId"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    title={selectedProject ? "Select Task" : "Select Project First"}
+                    options={taskOptions}
+                    value={field.value || "null"}
+                    onChange={field.onChange}
+                    width="100%"
+                    searchable
+                    disabled={!selectedProject}
+                  />
+                )}
               />
+              {errors.taskId && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.taskId.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827]">Progress (%)</label>
               <input
                 type="number"
-                value={progress}
+                {...register("progress")}
                 max={100}
                 min={0}
                 placeholder="Enter"
-                className="mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm"
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-
-                  if (value <= 100) {
-                    setProgress(e.target.value);
-                  }
-                }}
+                className={`mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm ${errors.progress ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                  }`}
               />
+              {errors.progress && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{errors.progress.message}</p>
+              )}
             </div>
           </div>
 
           <div>
             <label className="text-sm text-[#111827]">Work Description</label>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...register("description")}
               placeholder="Describe the work completed today..."
               rows={4}
-              className="mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm"
+              className={`mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm ${errors.description ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                }`}
             />
+            {errors.description && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{errors.description.message}</p>
+            )}
           </div>
 
           <div>
@@ -216,29 +303,34 @@ export default function DailyLogModel({
           <div>
             <label className="text-sm text-[#111827]">Issues/Notes</label>
             <textarea
-              value={issues}
-              onChange={(e) => setIssues(e.target.value)}
+              {...register("issues")}
               placeholder="Any issues, delays, or important notes..."
               rows={4}
-              className="mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm"
+              className={`mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm ${errors.issues ? "border-red-500 focus:border-red-500" : "border-gray-200"
+                }`}
             />
+            {errors.issues && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{errors.issues.message}</p>
+            )}
           </div>
-        </div>
 
-        <div className="px-6 py-3 border-t flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg bg-[#F3F4F6] text-[#111827]"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-6 py-2 rounded-lg bg-[#2563EB] text-white"
-          >
-            Create
-          </button>
-        </div>
+          <div className="pt-3 border-t flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-6 py-2 rounded-lg bg-[#F3F4F6] text-[#111827]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="px-6 py-2 rounded-lg bg-[#2563EB] text-white flex items-center gap-2 disabled:opacity-50"
+            >
+              {mutation.isPending ? "Creating..." : "Create"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
