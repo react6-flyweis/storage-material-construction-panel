@@ -12,6 +12,7 @@ import RightArrowIcon from "../../assets/right-arrow.svg";
 
 import DeliveryTrackingIcon from "../../assets/delivery-tracking.svg";
 import { useSidebar } from "../../context/SidebarContext";
+import { useAuthStore } from "../../store/authStore";
 
 type SidebarSubTab = {
   label: string;
@@ -103,6 +104,7 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeDate } = useSidebar();
+  const { user } = useAuthStore();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const activeTab =
@@ -251,9 +253,9 @@ export default function Sidebar({ open, setOpen, isCollapsed = false }: Props) {
           <div className="pl-5 py-[14px] min-w-[191px]">
             <div className="mb-4 pr-2">
               <h1 className="text-[17px] font-bold text-[#1D51A4]">
-                Construction User
+                Construction Panel
               </h1>
-              <p className="text-[14px] text-[#272C42]">const@steelpro.com</p>
+              <p className="text-[14px] text-[#272C42]">{user?.email || "const@steelpro.com"}</p>
             </div>
 
             <div className="flex gap-2 items-center mb-6">
