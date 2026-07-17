@@ -1,18 +1,73 @@
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import bgImage from "../../assets/AuthBackgroundImg.jpg";
 import { useNavigate } from "react-router-dom";
 import Input from "../common/Input";
 import Button from "../common/Button";
+import type { AxiosError } from "axios";
+import { loginWithEmailSchema, type LoginWithEmailInput } from "../../schema/login.schema";
+import { loginWithEmailApi } from "../../api/auth.api";
+import { useAuthStore } from "../../store/authStore";
+import type { AuthResponse } from "../../types/auth.types";
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
   const navigate = useNavigate();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    navigate("/dashboard");
+  const {
+    register,
+    handleSubmit,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<LoginWithEmailInput>({
+    resolver: zodResolver(loginWithEmailSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const { mutate: loginMutate, isPending } = useMutation({
+    mutationFn: (payload: LoginWithEmailInput) => loginWithEmailApi(payload),
+    onSuccess: (response) => {
+      const responseData = response.data as AuthResponse;
+
+      if (!responseData?.success || !responseData?.data) {
+        setError("root", { type: "server", message: responseData?.message || "Failed to log in" });
+        return;
+      }
+
+      const { accessToken, refreshToken, user, role } = responseData.data;
+
+      if (role !== "construction") {
+        setError("root", { type: "server", message: "Access denied. Only construction roles are authorized to sign in." });
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        setAuth(accessToken, refreshToken, user);
+        toast.success("Logged in successfully!");
+        navigate("/dashboard");
+      } else {
+        setError("root", { type: "server", message: "Invalid response from server. Token is missing." });
+      }
+    },
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message?: string }>;
+      const message = err.response?.data?.message || err.message || "Failed to log in";
+      setError("root", { type: "server", message });
+    },
+  });
+
+  const onSubmit = (data: LoginWithEmailInput) => {
+    clearErrors("root");
+    loginMutate({
+      email: data.email.trim(),
+      password: data.password.trim(),
+    });
   };
 
   return (
@@ -30,14 +85,14 @@ function Login() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Input
             id="email"
-            label="E-mail or phone number"
+            label="E-mail"
             type="text"
-            placeholder="Enter your email or phone"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email"
+            error={errors.email?.message}
+            {...register("email")}
           />
 
           <div className="space-y-1">
@@ -45,16 +100,30 @@ function Login() {
               id="password"
               label="Password"
               type="password"
+              isPassword
               placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              error={errors.password?.message}
+              {...register("password")}
             />
           </div>
 
-          <Button title="Login" type="submit" className="w-full" />
+          {errors.root && (
+            <p className="text-sm text-red-500 font-medium text-center">
+              {errors.root.message}
+            </p>
+          )}
+
+          <Button
+            title="Login"
+            type="submit"
+            className="w-full"
+            loading={isPending}
+            disabled={isPending}
+          />
 
           <div className="flex justify-end pt-2">
-            <span onClick={()=>navigate("/forgot-password")}
+            <span
+              onClick={() => navigate("/forgot-password")}
               className="text-sm font-normal text-[#1d7bd8] hover:opacity-80 transition-colors cursor-pointer"
             >
               Forgot Password?
