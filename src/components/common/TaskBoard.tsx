@@ -4,6 +4,7 @@ import NewTaskModel from "../newTaskModel";
 import RightCheckIcon from "../../assets/RightTickIcon";
 import { useSearch } from "../../context/SearchContext";
 import SuccessModal from "./SuccessModal";
+import type { ConstructionTask } from "../../types/projects.types";
 
 type TaskPriority = "High" | "Medium" | "Low";
 
@@ -19,80 +20,83 @@ type Task = {
   status?: "todo" | "inProgress" | "done"; // ✅ add status field
 };
 
-const initialTasks: {
-  todo: Task[];
-  inProgress: Task[];
-  done: Task[];
-} = {
-  todo: [
-    {
-      id: "1",
-      title: "Steel Frame Installation",
-      project: "Downtown Office Complex",
-      description: "Install steel frame structure for floors 1-5",
-      priority: "High",
-      due: "2024-02-15",
-      assignee: "Sarah Wilson",
-      status: "todo",
-    },
-  ],
-
-  inProgress: [
-    {
-      id: "2",
-      title: "Steel Frame Installation",
-      project: "Downtown Office Complex",
-      description:
-        "Complete excavation for building foundation according to architectural plans",
-      priority: "High",
-      due: "2024-02-15",
-      assignee: "Sarah Wilson",
-      progress: 75,
-      status: "inProgress",
-    },
-    {
-      id: "3",
-      title: "Plumbing Installation",
-      project: "Residential Tower A",
-      description: "Install plumbing systems for residential units",
-      priority: "Medium",
-      due: "2024-02-15",
-      assignee: "Sarah Wilson",
-      progress: 75,
-      status: "inProgress",
-    },
-  ],
-
-  done: [
-    {
-      id: "4",
-      title: "Electrical Wiring - Floor 1",
-      project: "Residential Tower A",
-      description:
-        "Complete electrical wiring installation for first floor units",
-      priority: "Low",
-      due: "NA",
-      assignee: "Robert Chen",
-      status: "done",
-    },
-  ],
-};
-
 const priorityStyles: Record<TaskPriority, string> = {
   High: "bg-red-100 text-red-500",
   Medium: "bg-yellow-100 text-yellow-600",
   Low: "bg-green-100 text-green-600",
 };
 
-export default function TaskBoard() {
+interface TaskBoardProps {
+  tasks?: ConstructionTask[];
+  isLoading?: boolean;
+}
+
+const mapApiTask = (t: ConstructionTask): Task => {
+  let priorityVal: TaskPriority = "Medium";
+  if (t.priority) {
+    const norm = t.priority.toLowerCase();
+    if (norm === "high") priorityVal = "High";
+    else if (norm === "low") priorityVal = "Low";
+  }
+  return {
+    id: t._id,
+    title: t.title,
+    project: t.leadId?.projectName || "—",
+    description: t.description || "",
+    priority: priorityVal,
+    due: t.dueDate ? new Date(t.dueDate).toLocaleDateString("en-GB") : "NA",
+    assignee: t.assignedTo?.name || "Unassigned",
+    status: t.status === "in_progress" ? "inProgress" : (t.status as "todo" | "done"),
+  };
+};
+
+interface NewTaskData {
+  taskName: string;
+  project: string;
+  description: string;
+  priority: string;
+  deadline?: string;
+  assignedTo: string;
+  status: "todo" | "inProgress" | "done";
+}
+
+interface DailyLogData {
+  task: string;
+  project: string;
+  description: string;
+  progress: string | number;
+}
+
+export default function TaskBoard({ tasks: propTasks, isLoading }: TaskBoardProps) {
   const [openDailyLogModel, setDailyLogModel] = useState(false);
   const [openNewTaskModel, setNewTaskModel] = useState(false);
-  const [tasks, setTasks] = useState(initialTasks);
+  const [localTasks, setLocalTasks] = useState<{
+    todo: Task[];
+    inProgress: Task[];
+    done: Task[];
+  }>({
+    todo: [],
+    inProgress: [],
+    done: [],
+  });
   const [successOpen, setSuccessOpen] = useState(false);
   const [successTitle, setSuccessTitle] = useState("");
   const [afterSuccessAction, setAfterSuccessAction] = useState<
     (() => void) | null
   >(null);
+
+  const tasks = React.useMemo(() => {
+    const apiMapped = {
+      todo: (propTasks || []).filter((t) => t.status === "todo").map(mapApiTask),
+      inProgress: (propTasks || []).filter((t) => t.status === "in_progress").map(mapApiTask),
+      done: (propTasks || []).filter((t) => t.status === "done").map(mapApiTask),
+    };
+    return {
+      todo: [...localTasks.todo, ...apiMapped.todo],
+      inProgress: [...localTasks.inProgress, ...apiMapped.inProgress],
+      done: [...localTasks.done, ...apiMapped.done],
+    };
+  }, [propTasks, localTasks]);
 
   const { search } = useSearch();
   const filterTasksBySearch = (list: Task[]) => {
@@ -111,7 +115,7 @@ export default function TaskBoard() {
     );
   };
 
-  const handleNewTask = (data: any) => {
+  const handleNewTask = (data: NewTaskData) => {
     const newTask: Task = {
       id: Date.now().toString(),
       title: data.taskName,
@@ -123,7 +127,7 @@ export default function TaskBoard() {
       status: data.status,
     };
 
-    setTasks((prev) => {
+    setLocalTasks((prev) => {
       const updated = { ...prev };
       if (newTask.status === "todo") updated.todo = [newTask, ...prev.todo];
       else if (newTask.status === "inProgress")
@@ -133,7 +137,7 @@ export default function TaskBoard() {
       return updated;
     });
   };
-  const handleDailyLogSubmit = (data: any) => {
+  const handleDailyLogSubmit = (data: DailyLogData) => {
     const newTask: Task = {
       id: Date.now().toString(),
       title: data.task,
@@ -145,11 +149,27 @@ export default function TaskBoard() {
       assignee: "You",
     };
 
-    setTasks((prev) => ({
+    setLocalTasks((prev) => ({
       ...prev,
       inProgress: [newTask, ...prev.inProgress],
     }));
   };
+
+
+  const renderSkeleton = () => (
+    <div className="bg-white rounded-xl p-4 shadow-sm mb-4 animate-pulse">
+      <div className="flex justify-between items-start mb-3">
+        <div className="h-4 bg-gray-200 rounded w-2/3" />
+        <div className="h-4 bg-gray-200 rounded w-1/4" />
+      </div>
+      <div className="h-3 bg-gray-200 rounded w-1/3 mb-2" />
+      <div className="h-3 bg-gray-200 rounded w-5/6 mb-4" />
+      <div className="flex justify-between mt-4">
+        <div className="h-3 bg-gray-200 rounded w-1/4" />
+        <div className="h-3 bg-gray-200 rounded w-1/4" />
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -215,26 +235,47 @@ export default function TaskBoard() {
       <div className="overflow-x-auto scroll-hide -mx-3 px-3 sm:mx-0 sm:px-0">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-0 md:min-w-[800px]">
           <Column
-            title={`To Do (${filterTasksBySearch(tasks.todo).length})`}
+            title={`To Do (${isLoading ? "" : filterTasksBySearch(tasks.todo).length})`}
             bg="bg-[#F9FAFB]"
           >
-            {filterTasksBySearch(tasks.todo).map(renderTask)}
+            {isLoading ? (
+              <>
+                {renderSkeleton()}
+                {renderSkeleton()}
+              </>
+            ) : (
+              filterTasksBySearch(tasks.todo).map(renderTask)
+            )}
           </Column>
 
           <Column
             title={`In Progress (${
-              filterTasksBySearch(tasks.inProgress).length
+              isLoading ? "" : filterTasksBySearch(tasks.inProgress).length
             })`}
             bg="bg-[#EFF6FF]"
           >
-            {filterTasksBySearch(tasks.inProgress).map(renderTask)}
+            {isLoading ? (
+              <>
+                {renderSkeleton()}
+                {renderSkeleton()}
+              </>
+            ) : (
+              filterTasksBySearch(tasks.inProgress).map(renderTask)
+            )}
           </Column>
 
           <Column
-            title={`Done (${filterTasksBySearch(tasks.done).length})`}
+            title={`Done (${isLoading ? "" : filterTasksBySearch(tasks.done).length})`}
             bg="bg-[#F0FDF4]"
           >
-            {filterTasksBySearch(tasks.done).map(renderTask)}
+            {isLoading ? (
+              <>
+                {renderSkeleton()}
+                {renderSkeleton()}
+              </>
+            ) : (
+              filterTasksBySearch(tasks.done).map(renderTask)
+            )}
           </Column>
         </div>
       </div>
