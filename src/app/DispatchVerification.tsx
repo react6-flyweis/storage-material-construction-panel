@@ -1,28 +1,78 @@
-import { Search, ChevronDown, Download, ArrowUpDown, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, ChevronDown, Download, ArrowUpDown, ShieldCheck, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getDispatchVerificationApi } from "../api/projects.api";
+import CustomSelect from "../components/common/CustomSelect";
+import toast from "react-hot-toast";
+import type { DispatchLoad } from "../types/projects.types";
+import DispatchDetailModal from "../components/common/DispatchDetailModal";
+
+const formatStatus = (status?: string) => {
+  if (!status) return "-";
+  return status
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const getStatusStyle = (status?: string) => {
+  if (!status) return "bg-gray-50 text-gray-600";
+  const lowered = status.toLowerCase();
+  if (lowered === "pending") return "bg-yellow-50 text-yellow-600";
+  if (lowered === "confirmed" || lowered === "verified") return "bg-emerald-50 text-emerald-600";
+  return "bg-blue-50 text-blue-600";
+};
+
+const formatWeight = (weight?: number) => {
+  if (weight === undefined || weight === null) return "-";
+  return `${weight.toLocaleString()} LBS`;
+};
 
 export default function DispatchVerification() {
-  const stats = [
-    { title: "Leads Ready for Dispatch", value: "5", trend: "5.62%", isUp: true, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Bundles Verified", value: "22", trend: "11.4%", isUp: true, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Bundles Missing", value: "1", trend: "8.52%", isUp: true, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { title: "Leads Dispatched Today", value: "3", trend: "7.45%", isUp: false, color: "text-red-600", bg: "bg-red-50" },
-  ];
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortBy, setSortBy] = useState("Latest");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedLoad, setSelectedLoad] = useState<DispatchLoad | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const verificationData = [
-    { id: "LOAD-001", truck: "TX-4582", driver: "John Miller", bundles: 5, weight: "18,500 LBS", destination: "Site A", status: "Pending" },
-    { id: "LOAD-002", truck: "TX-2345", driver: "Alex Turner", bundles: 8, weight: "37,700 LBS", destination: "Site A", status: "Verified" },
-    { id: "LOAD-003", truck: "TX-4582", driver: "John Miller", bundles: 6, weight: "21,400 LBS", destination: "Site B", status: "Pending" },
-    { id: "LOAD-004", truck: "TX-2345", driver: "Alex Turner", bundles: 5, weight: "18,500 LBS", destination: "Site C", status: "Verified" },
-    { id: "LOAD-005", truck: "TX-4582", driver: "John Miller", bundles: 8, weight: "37,700 LBS", destination: "Site A", status: "Pending" },
-    { id: "LOAD-006", truck: "TX-2345", driver: "Alex Turner", bundles: 6, weight: "21,400 LBS", destination: "Site A", status: "Verified" },
-    { id: "LOAD-007", truck: "TX-4582", driver: "John Miller", bundles: 3, weight: "18,500 LBS", destination: "Site B", status: "Pending" },
-    { id: "LOAD-008", truck: "TX-2345", driver: "Alex Turner", bundles: 4, weight: "37,700 LBS", destination: "Site C", status: "Verified" },
-    { id: "LOAD-009", truck: "TX-4582", driver: "John Miller", bundles: 2, weight: "21,400 LBS", destination: "Site C", status: "Pending" },
-    { id: "LOAD-010", truck: "TX-2345", driver: "Alex Turner", bundles: 4, weight: "18,500 LBS", destination: "Site A", status: "Verified" },
-    { id: "LOAD-011", truck: "TX-4582", driver: "John Miller", bundles: 5, weight: "37,700 LBS", destination: "Site A", status: "Pending" },
-    { id: "LOAD-012", truck: "TX-2345", driver: "Alex Turner", bundles: 8, weight: "21,400 LBS", destination: "Site T", status: "Verified" },
-    { id: "LOAD-013", truck: "TX-4582", driver: "John Miller", bundles: 6, weight: "18,500 LBS", destination: "Site A", status: "Pending" },
-    { id: "LOAD-014", truck: "TX-2345", driver: "Alex Turner", bundles: 8, weight: "37,700 LBS", destination: "Site A", status: "Pending" },
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [search]);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["dispatchVerification", page, limit, debouncedSearch, sortBy, statusFilter],
+    queryFn: () =>
+      getDispatchVerificationApi({
+        page,
+        limit,
+        search: debouncedSearch || undefined,
+        sortBy: sortBy || undefined,
+        status: statusFilter || undefined,
+      }),
+  });
+
+  const apiData = data?.data?.data;
+  const loads = apiData?.loads || [];
+  const total = apiData?.total || 0;
+  const apiStats = apiData?.stats;
+
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  const stats = [
+    { title: "Loads Ready for Dispatch", value: apiStats?.loadsReadyForDispatch ?? 0, trend: "5.62%", isUp: true, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Bundles Verified", value: apiStats?.bundlesVerified ?? 0, trend: "11.4%", isUp: true, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Bundles Missing", value: apiStats?.bundlesMissing ?? 0, trend: "8.52%", isUp: true, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Leads Dispatched Today", value: apiStats?.leadsDispatchedToday ?? 0, trend: "7.45%", isUp: false, color: "text-red-600", bg: "bg-red-50" },
   ];
 
   return (
@@ -34,15 +84,24 @@ export default function DispatchVerification() {
           <p className="text-sm font-medium text-gray-500 max-w-2xl">Verify bundles and truckload details before confirming dispatch from the plant.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all">
-              <Download className="w-4 h-4" />
-              Export
+          <button
+            onClick={() => toast.success("Exporting dispatch verification reports...")}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export
           </button>
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#8B5CF6] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-100 hover:opacity-90 transition-all">
-              Confirm Dispatch
+          <button
+            onClick={() => toast.success("Confirming dispatch for selected loads...")}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#8B5CF6] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-100 hover:opacity-90 transition-all"
+          >
+            Confirm Dispatch
           </button>
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-100 hover:opacity-90 transition-all">
-              Verify Load
+          <button
+            onClick={() => toast.success("Initiating load verification flow...")}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-100 hover:opacity-90 transition-all"
+          >
+            Verify Load
           </button>
         </div>
       </div>
@@ -54,7 +113,7 @@ export default function DispatchVerification() {
             <div className="flex items-center justify-between mb-4">
               <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.title}</p>
               <div className={`p-2 rounded-xl ${stat.bg}`}>
-                  <ShieldCheck className={`w-5 h-5 ${stat.color}`} />
+                <ShieldCheck className={`w-5 h-5 ${stat.color}`} />
               </div>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">{stat.value}</h3>
@@ -75,46 +134,69 @@ export default function DispatchVerification() {
           <input
             type="text"
             placeholder="Search dispatch verification history..."
-            className="w-full h-11 pl-10 pr-4 bg-white border border-gray-100 rounded-xl text-sm font-bold outline-none shadow-sm focus:border-blue-500 transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 bg-white border border-gray-100 rounded-xl text-sm font-bold outline-none shadow-sm focus:border-blue-500 transition-all duration-200"
           />
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all">
-            <ChevronDown className="w-4 h-4" />
-            Filter
-          </button>
-          <div className="bg-white border border-gray-100 rounded-xl px-4 py-2 flex items-center justify-between sm:justify-start gap-3 shadow-sm relative">
-             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Sort by :</span>
-             <select className="appearance-none bg-transparent text-xs font-bold text-gray-900 pr-4 outline-none cursor-pointer">
-                <option>Latest</option>
-                <option>Oldest</option>
-                <option>Weight</option>
-             </select>
-             <ChevronDown className="w-3 h-3 text-gray-900 absolute right-4 pointer-events-none" />
+          <CustomSelect
+            title="Filter by Status"
+            options={[
+              { label: "All Statuses", value: "" },
+              { label: "Pending", value: "pending" },
+              { label: "Confirmed", value: "confirmed" },
+              { label: "Staged", value: "staged" },
+              { label: "Loaded", value: "loaded" },
+              { label: "Dispatched", value: "dispatched" },
+            ]}
+            value={statusFilter}
+            onChange={(val) => {
+              setStatusFilter(val);
+              setPage(1);
+            }}
+            width="180px"
+          />
+
+          <div className="bg-white border border-gray-100 rounded-xl px-4 py-2 flex items-center justify-between sm:justify-start gap-3 shadow-sm relative h-[40px] min-w-[140px]">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Sort by :</span>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
+              className="appearance-none bg-transparent text-xs font-bold text-gray-900 pr-6 outline-none cursor-pointer w-full"
+            >
+              <option value="Latest">Latest</option>
+              <option value="Oldest">Oldest</option>
+              <option value="Weight">Weight</option>
+            </select>
+            <ChevronDown className="w-3 h-3 text-gray-900 absolute right-4 pointer-events-none" />
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-[24px] border border-gray-50 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white rounded-[24px] border border-gray-50 shadow-sm overflow-hidden flex flex-col min-h-[300px] justify-between">
         <div className="overflow-x-auto scroll-hide">
           <table className="w-full text-left min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-50">
                 <th className="px-6 py-4 w-12">
-                  <div className="w-5 h-5 border-2 border-gray-200 rounded-md cursor-pointer hover:border-blue-400 transition-colors" />
+                  <div className="w-5 h-5 border-2 border-gray-200 rounded-md cursor-pointer hover:border-blue-400" />
                 </th>
                 <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Load ID</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Truck</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Driver</th>
                 <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                   <div className="flex items-center gap-1.5 cursor-pointer group">
-                      Bundles <ArrowUpDown className="w-3 h-3 group-hover:text-blue-500 transition-colors" />
+                    Bundles <ArrowUpDown className="w-3 h-3 group-hover:text-blue-500 transition-colors" />
                   </div>
                 </th>
                 <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                   <div className="flex items-center gap-1.5 cursor-pointer group">
-                      Total Weight <ArrowUpDown className="w-3 h-3 group-hover:text-blue-500 transition-colors" />
+                    Total Weight <ArrowUpDown className="w-3 h-3 group-hover:text-blue-500 transition-colors" />
                   </div>
                 </th>
                 <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Destination</th>
@@ -123,61 +205,140 @@ export default function DispatchVerification() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {verificationData.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-6 py-5">
-                      <div className="w-5 h-5 border-2 border-gray-200 rounded-md cursor-pointer group-hover:border-blue-400 transition-all" />
-                  </td>
-                  <td className="px-6 py-5 text-xs font-bold text-gray-900">{row.id}</td>
-                  <td className="px-6 py-5 text-xs font-bold text-gray-900">{row.truck}</td>
-                  <td className="px-6 py-5 text-xs font-bold text-gray-400">{row.driver}</td>
-                  <td className="px-6 py-5 text-xs font-bold text-gray-900">{row.bundles}</td>
-                  <td className="px-6 py-5 text-xs font-bold text-gray-900">{row.weight}</td>
-                  <td className="px-6 py-5 text-xs font-bold text-gray-500">{row.destination}</td>
-                  <td className="px-6 py-5">
-                    <span className={`
-                      px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-fit
-                      ${row.status === "Pending" ? "bg-yellow-50 text-yellow-600" : "bg-green-50 text-green-600"}
-                    `}>
-                      {row.status} {row.status === "Pending" && <span className="text-[10px] font-bold opacity-50">🕗</span>}
-                      {row.status === "Verified" && <span className="text-[10px] font-bold opacity-50">✅</span>}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-right">
-                    <button className="bg-[#6366F1] text-white px-5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-sm">
-                      View Load
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-20 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-8 h-8 text-[#6366F1] animate-spin" />
+                      <p className="text-sm font-bold text-gray-500">Loading dispatch verification data...</p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={9} className="py-20 text-center">
+                    <p className="text-sm font-bold text-red-500">Error loading dispatch verification data. Please try again later.</p>
+                  </td>
+                </tr>
+              ) : loads.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-20 text-center">
+                    <p className="text-sm font-bold text-gray-400">No dispatch loads found.</p>
+                  </td>
+                </tr>
+              ) : (
+                loads.map((row) => (
+                  <tr key={row.loadId} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="w-5 h-5 border-2 rounded-md transition-all cursor-pointer border-gray-200 group-hover:border-blue-400" />
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="text-xs font-bold text-gray-900">{row.loadId}</div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                        {row.packingListNo ? `Packing List: ${row.packingListNo}` : "-"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-xs font-bold text-gray-900">{row.truck || "-"}</td>
+                    <td className="px-6 py-5 text-xs font-bold text-gray-400">-</td>
+                    <td className="px-6 py-5 text-xs font-bold text-gray-900">{row.totalBundles ?? 0}</td>
+                    <td className="px-6 py-5 text-xs font-bold text-gray-900">{formatWeight(row.totalWeight)}</td>
+                    <td className="px-6 py-5 text-xs font-bold text-gray-500">
+                      <div>{row.destination || "-"}</div>
+                      {row.project && (
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                          {row.project.projectName || "-"} ({row.project.jobId || "-"})
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={`
+                        px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-fit
+                        ${getStatusStyle(row.status)}
+                      `}>
+                        {formatStatus(row.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <button
+                        onClick={() => {
+                          setSelectedLoad(row);
+                          setIsModalOpen(true);
+                        }}
+                        className="bg-[#6366F1] text-white px-5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-sm"
+                      >
+                        View Load
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
-        <div className="px-4 sm:px-8 py-6 bg-gray-50/30 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 order-2 sm:order-1">
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Showing</p>
-             <select className="bg-white border border-gray-100 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 shadow-sm outline-none cursor-pointer">
-                <option>10</option>
-             </select>
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Results</p>
-          </div>
-          <div className="flex items-center gap-2 order-1 sm:order-2">
-            <button className="p-2 text-gray-300 hover:text-gray-900 transition-colors">
-              <ChevronDown className="w-4 h-4 rotate-90" />
-            </button>
-            <div className="flex items-center gap-1">
-              <button className="w-9 h-9 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-lg shadow-blue-100 transition-all">1</button>
-              <button className="w-9 h-9 rounded-xl text-gray-400 text-xs font-bold hover:bg-white hover:text-gray-900 transition-all">2</button>
-              <button className="w-9 h-9 rounded-xl text-gray-400 text-xs font-bold hover:bg-white hover:text-gray-900 transition-all">3</button>
+        {!isLoading && !error && loads.length > 0 && (
+          <div className="px-4 sm:px-8 py-6 bg-gray-50/30 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3 order-2 sm:order-1">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Showing</p>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="bg-white border border-gray-100 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 shadow-sm outline-none cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Results</p>
             </div>
-            <button className="p-2 text-gray-300 hover:text-gray-900 transition-colors">
-              <ChevronDown className="w-4 h-4 -rotate-90" />
-            </button>
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                className={`p-2 text-gray-300 hover:text-gray-900 transition-colors ${page === 1 ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <ChevronDown className="w-4 h-4 rotate-90" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, idx) => {
+                  const pNum = idx + 1;
+                  return (
+                    <button
+                      key={pNum}
+                      onClick={() => setPage(pNum)}
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                        page === pNum
+                          ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                          : "text-gray-400 hover:bg-white hover:text-gray-900"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                className={`p-2 text-gray-300 hover:text-gray-900 transition-colors ${page === totalPages ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <ChevronDown className="w-4 h-4 -rotate-90" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      <DispatchDetailModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        load={selectedLoad}
+      />
     </div>
   );
 }
+
