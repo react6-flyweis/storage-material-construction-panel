@@ -13,82 +13,160 @@ import {
   Plus,
 } from "lucide-react";
 import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getDeliveriesApi, markDeliveryReceivedApi, markDeliveryPartialApi } from "../api/projects.api";
 import UpdateSiteContactModal from "../components/common/UpdateSiteContactModal";
 import ScanQRCodeModal from "../components/common/ScanQRCodeModal";
+import ScanResultModal from "../components/common/ScanResultModal";
 import DeliveryDetailsModal from "../components/materials/DeliveryDetailsModal";
 import AddDeliveryDrawer from "../components/materials/AddDeliveryDrawer";
+import MarkPartialModal from "../components/materials/MarkPartialModal";
 
 export default function DeliveryTracking() {
   const [updateContactOpen, setUpdateContactOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [scannedBundleId, setScannedBundleId] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [addDeliveryOpen, setAddDeliveryOpen] = useState(false);
+  const [partialOpen, setPartialOpen] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<{ id: string; number: string } | null>(null);
+
+  const queryClient = useQueryClient();
+
+  const { data: deliveriesData } = useQuery({
+    queryKey: ["deliveries"],
+    queryFn: getDeliveriesApi,
+  });
+
+  const markReceivedMutation = useMutation({
+    mutationFn: markDeliveryReceivedApi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+    },
+  });
+
+  const markPartialMutation = useMutation({
+    mutationFn: ({ deliveryId, notes }: { deliveryId: string; notes?: string }) =>
+      markDeliveryPartialApi(deliveryId, { notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+    },
+  });
+
+  const apiStats = deliveriesData?.data?.data?.stats;
+  const deliveriesList = deliveriesData?.data?.data?.deliveries || [];
 
   const stats = [
-    { label: "In Transit", value: 1, icon: <Truck className="w-5 h-5" />, bg: "bg-[#1D51A4]", sub: "Arriving at Plant" },
-    { label: "Staged", value: 1, icon: <Package className="w-5 h-5" />, bg: "bg-[#3AB449]", sub: "At Plant/Yard" },
-    { label: "Ready", value: 1, icon: <CheckSquare className="w-5 h-5" />, bg: "bg-[#F97316]", sub: "For Departure" },
-    { label: "Total Today", value: 4, icon: <Package className="w-5 h-5" />, bg: "bg-[#4B5563]", sub: "All Deliveries" },
+    { label: "In Transit", value: apiStats?.inTransit ?? 0, icon: <Truck className="w-5 h-5" />, bg: "bg-[#1D51A4]", sub: "Arriving at Plant" },
+    { label: "Staged", value: apiStats?.staged ?? 0, icon: <Package className="w-5 h-5" />, bg: "bg-[#3AB449]", sub: "At Plant/Yard" },
+    { label: "Ready", value: apiStats?.ready ?? 0, icon: <CheckSquare className="w-5 h-5" />, bg: "bg-[#F97316]", sub: "For Departure" },
+    { label: "Total Today", value: apiStats?.totalToday ?? 0, icon: <Package className="w-5 h-5" />, bg: "bg-[#4B5563]", sub: "All Deliveries" },
   ];
 
-  const deliveries = [
-    {
-      id: "DEL-2001",
-      title: "Primary Frame Steel",
-      subtitle: "ABC Logistics Warehouse",
-      badges: [
-        { label: "In Transit to Plant", bg: "bg-[#1D51A4] text-white" },
-        { label: "High Priority", bg: "bg-red-500 text-white" },
-        { label: "ETA 45 min", bg: "bg-[#FEFCE8] text-yellow-700", icon: <Clock className="w-3 h-3" /> },
-      ],
-      material: { qty: "45,000 lbs", area: "Yard-A" },
-      schedule: { arrival: "Mar 24, 10:00 AM", departure: "Mar 24, 02:00 PM" },
-      carrier: { name: "FastFreight Logistics", address: "Construction Site A" },
-      truck: { id: "TX-4582", driver: "John Miller", phone: "+1 555-812-9921" },
-      notes: "Fragile - handle with care",
-    },
-    {
-        id: "DEL-2002",
-        title: "Glass Panels",
-        subtitle: "Downtown Office Complex",
-        badges: [
-          { label: "Staged at Plant", bg: "bg-[#3AB449] text-white" },
-          { label: "Delayed 30 minutes", bg: "bg-[#FEFCE8] text-yellow-700", icon: <Clock className="w-3 h-3" /> },
-        ],
-        material: { qty: "8,500 lbs", area: "Warehouse-2" },
-        schedule: { arrival: "Mar 24, 08:30 AM", departure: "Mar 24, 11:00 AM" },
-        carrier: { name: "Regional Freight", address: "Construction Site B" },
-        truck: { id: "TX-4582", driver: "John Miller", phone: "+1 555-812-9921" },
-        notes: "Fragile - handle with care",
-    },
-    {
-        id: "DEL-2003",
-        title: "Concrete Blocks",
-        subtitle: "Industrial Park Phase 2",
-        badges: [
-          { label: "Scheduled", bg: "bg-gray-400 text-white" },
-        ],
-        material: { qty: "15,000 lbs", area: "Yard-B" },
-        schedule: { arrival: "Mar 25, 09:00 AM", departure: "Mar 25, 01:00 PM" },
-        carrier: { name: "Local Delivery Services", address: "Construction Site C" },
-        truck: { id: "TX-4582", driver: "John Miller", phone: "+1 555-812-9921" },
-        notes: "Standard handling",
-    },
-    {
-        id: "DEL-2004",
-        title: "Roll-up Doors (3 units)",
-        subtitle: "ABC Logistics Warehouse",
-        badges: [
-          { label: "Ready for Departure", bg: "bg-[#F97316] text-white" },
-          { label: "High Priority", bg: "bg-red-500 text-white" },
-        ],
-        material: { qty: "2,500 lbs", area: "Warehouse-1" },
-        schedule: { arrival: "Mar 23, 03:00 PM", departure: "Mar 24, 07:00 AM" },
-        carrier: { name: "QuickTransport Co.", address: "Construction Site A" },
-        truck: { id: "TX-4582", driver: "John Miller", phone: "+1 555-812-9921" },
-        notes: "Pickup scheduled for tomorrow",
-    },
-  ];
+  const deliveries = deliveriesList.map((item) => {
+    const badges = [];
+
+    // Map API status to UI labels and bg
+    let statusLabel = item.status || "-";
+    let statusBg = "bg-gray-400 text-white";
+
+    if (item.status === "in_transit") {
+      statusLabel = "In Transit to Plant";
+      statusBg = "bg-[#1D51A4] text-white";
+    } else if (item.status === "staged") {
+      statusLabel = "Staged at Plant";
+      statusBg = "bg-[#3AB449] text-white";
+    } else if (item.status === "ready") {
+      statusLabel = "Ready for Departure";
+      statusBg = "bg-[#F97316] text-white";
+    } else if (item.status === "confirmed") {
+      statusLabel = "Confirmed";
+      statusBg = "bg-emerald-500 text-white";
+    } else if (item.status === "delivered") {
+      statusLabel = "Delivered";
+      statusBg = "bg-gray-500 text-white";
+    } else if (item.status === "bidding_sent") {
+      statusLabel = "Bidding Sent";
+      statusBg = "bg-blue-400 text-white";
+    } else if (item.status === "carrier_selected") {
+      statusLabel = "Carrier Selected";
+      statusBg = "bg-purple-500 text-white";
+    }
+
+    badges.push({ label: statusLabel, bg: statusBg });
+
+    // Show ETA badge if deliveryTime or timings exist
+    if (item.schedule?.deliveryTime) {
+      badges.push({
+        label: `ETA ${item.schedule.deliveryTime}`,
+        bg: "bg-[#FEFCE8] text-yellow-700",
+        icon: <Clock className="w-3 h-3" />
+      });
+    } else if (item.schedule?.timings) {
+      badges.push({
+        label: item.schedule.timings,
+        bg: "bg-[#FEFCE8] text-yellow-700",
+        icon: <Clock className="w-3 h-3" />
+      });
+    }
+
+    // Format load weight
+    const formattedWeight = item.loadWeight
+      ? `${Number(item.loadWeight).toLocaleString()} lbs`
+      : "-";
+
+    // Format pickup date/time
+    let pickupStr = "-";
+    if (item.schedule?.pickupDate) {
+      const pDate = new Date(item.schedule.pickupDate);
+      const dateOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+      const formattedDate = pDate.toLocaleDateString('en-US', dateOptions);
+      pickupStr = `${formattedDate}${item.schedule.pickupTime ? `, ${item.schedule.pickupTime}` : ""}`;
+    }
+
+    // Format delivery date/time
+    let deliveryStr = "-";
+    if (item.schedule?.deliveryDate) {
+      const dDate = new Date(item.schedule.deliveryDate);
+      const dateOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+      const formattedDate = dDate.toLocaleDateString('en-US', dateOptions);
+      deliveryStr = `${formattedDate}${item.schedule.deliveryTime ? `, ${item.schedule.deliveryTime}` : ""}`;
+    }
+
+    // Determine carrier info
+    const carrierName = item.carrier?.email || item.carrier?.driverName || "-";
+    const driverName = item.carrier?.driverName || "-";
+    const truckId = item.carrier?.truckNumber || "-";
+    const phone = item.carrier?.driverPhone || item.carrier?.phone || "-";
+
+    return {
+      deliveryId: item.deliveryId,
+      status: item.status,
+      id: item.deliveryNumber || "-",
+      title: item.materialType || item.description || "Delivery",
+      subtitle: item.project?.projectName || item.project?.jobId || "-",
+      badges,
+      material: {
+        qty: formattedWeight,
+        area: item.stagingArea || "-"
+      },
+      schedule: {
+        arrival: deliveryStr,
+        departure: pickupStr
+      },
+      carrier: {
+        name: carrierName,
+        address: item.deliveryLocation || "-"
+      },
+      truck: {
+        id: truckId,
+        driver: driverName,
+        phone: phone
+      },
+      notes: item.notes || "-"
+    };
+  });
 
   return (
     <div className="mx-auto pb-10 space-y-6">
@@ -345,20 +423,33 @@ export default function DeliveryTracking() {
               </div>
 
               {/* Buttons Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-                <button className="bg-[#10B981] text-white py-3 rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2">
-                  <CheckSquare className="w-3.5 h-3.5" />
-                  Mark as Received
-                </button>
-                <button onClick={() => setScanOpen(true)} className="bg-[#F97316] text-white py-3 rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 flex items-center justify-center gap-2">
-                  <QrCode className="w-3.5 h-3.5" />
-                  Scan QR Code
-                </button>
-                <button className="bg-[#1D51A4] text-white py-3 rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2">
-                  <Info className="w-3.5 h-3.5" />
-                  Partial Received
-                </button>
-              </div>
+              {item.status !== "delivered" && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                  <button
+                    onClick={() => markReceivedMutation.mutate(item.deliveryId)}
+                    disabled={markReceivedMutation.isPending}
+                    className="bg-[#10B981] text-white py-3 rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    {markReceivedMutation.isPending ? "Marking..." : "Mark as Received"}
+                  </button>
+                  <button onClick={() => setScanOpen(true)} className="bg-[#F97316] text-white py-3 rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 flex items-center justify-center gap-2">
+                    <QrCode className="w-3.5 h-3.5" />
+                    Scan QR Code
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedDelivery({ id: item.deliveryId, number: item.id });
+                      setPartialOpen(true);
+                    }}
+                    disabled={markPartialMutation.isPending}
+                    className="bg-[#1D51A4] text-white py-3 rounded-xl text-[9px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    {markPartialMutation.isPending ? "Marking..." : "Partial Received"}
+                  </button>
+                </div>
+              )}
 
               {/* Links Footer */}
               <div className="flex items-center gap-3 border-t border-gray-50 pt-6">
@@ -378,9 +469,48 @@ export default function DeliveryTracking() {
         open={updateContactOpen}
         onClose={() => setUpdateContactOpen(false)}
       />
-      <ScanQRCodeModal open={scanOpen} onClose={() => setScanOpen(false)} />
+      <ScanQRCodeModal 
+        open={scanOpen} 
+        onClose={() => setScanOpen(false)} 
+        onScanSuccess={(bundleId) => {
+          setScannedBundleId(bundleId);
+          setResultOpen(true);
+        }}
+      />
+      <ScanResultModal
+        open={resultOpen}
+        onClose={() => setResultOpen(false)}
+        bundleId={scannedBundleId}
+        onBack={() => {
+          setResultOpen(false);
+          setScanOpen(true);
+        }}
+      />
       <DeliveryDetailsModal open={detailsOpen} onClose={() => setDetailsOpen(false)} />
       <AddDeliveryDrawer open={addDeliveryOpen} onClose={() => setAddDeliveryOpen(false)} />
+      <MarkPartialModal
+        open={partialOpen}
+        onClose={() => {
+          setPartialOpen(false);
+          setSelectedDelivery(null);
+        }}
+        deliveryId={selectedDelivery?.id || ""}
+        deliveryNumber={selectedDelivery?.number || ""}
+        onConfirm={(notes) => {
+          if (selectedDelivery) {
+            markPartialMutation.mutate(
+              { deliveryId: selectedDelivery.id, notes },
+              {
+                onSuccess: () => {
+                  setPartialOpen(false);
+                  setSelectedDelivery(null);
+                },
+              }
+            );
+          }
+        }}
+        isPending={markPartialMutation.isPending}
+      />
     </div>
   );
 }
