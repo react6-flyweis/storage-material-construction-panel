@@ -232,7 +232,7 @@ export default function TaskBoard({ tasks: propTasks, isLoading }: TaskBoardProp
         </div>
       </div>
 
-      <div className="overflow-x-auto scroll-hide -mx-3 px-3 sm:mx-0 sm:px-0">
+      <div className="overflow-x-auto thin-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-0 md:min-w-[800px]">
           <Column
             title={`To Do (${isLoading ? "" : filterTasksBySearch(tasks.todo).length})`}
@@ -345,7 +345,7 @@ function Column({
 }) {
   return (
     <div
-      className={`${bg} rounded-[8px] p-4 min-h-[600px] max-h-[80vh] overflow-auto scroll-hide`}
+      className={`${bg} rounded-[8px] p-4 min-h-[600px] max-h-[80vh] overflow-auto thin-scrollbar`}
     >
       <h3 className="font-semibold mb-4 text-sm text-[#111827]">{title}</h3>
       {children}
