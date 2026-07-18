@@ -1,5 +1,6 @@
 import { axiosInstance } from "./axiosInstance";
-import type { ProjectsApiResponse, ProjectDetailsApiResponse, CalendarApiResponse, DrawingsApiResponse, TasksApiResponse } from "../types/projects.types";
+import type { ProjectsApiResponse, ProjectDetailsApiResponse, CalendarApiResponse, DrawingsApiResponse, TasksApiResponse, DeliveriesApiResponse, LabelsApiResponse, LabelsQueryParams, BundleScanApiResponse, BundleScanQueryParams, PackingListApiResponse, PackingListsQueryParams, DispatchVerificationApiResponse, DispatchVerificationQueryParams } from "../types/projects.types";
+
 
 export interface ProjectsQueryParams {
   page?: number;
@@ -32,6 +33,10 @@ export const getTasksApi = () => {
   return axiosInstance.get<TasksApiResponse>("/construction/tasks");
 };
 
+export const getDeliveriesApi = () => {
+  return axiosInstance.get<DeliveriesApiResponse>("/construction/deliveries");
+};
+
 export interface CreateTaskPayload {
   title: string;
   description: string;
@@ -59,6 +64,40 @@ export interface CreateWorkLogPayload {
 export const createWorkLogApi = (payload: CreateWorkLogPayload) => {
   return axiosInstance.post("/construction/work-logs", payload);
 };
+
+export const markDeliveryReceivedApi = (deliveryId: string) => {
+  return axiosInstance.post(`/construction/deliveries/${deliveryId}/mark-received`);
+};
+
+export const markDeliveryPartialApi = (deliveryId: string, payload?: { notes?: string }) => {
+  return axiosInstance.post(`/construction/deliveries/${deliveryId}/mark-partial`, payload);
+};
+
+export interface ScanBundlePayload {
+  bundleId: string;
+}
+
+export const scanBundleApi = (payload: ScanBundlePayload) => {
+  return axiosInstance.post("/construction/deliveries/scan-bundle", payload);
+};
+
+export const getLabelsApi = (params?: LabelsQueryParams) => {
+  return axiosInstance.get<LabelsApiResponse>("/construction/labels", { params });
+};
+
+export const getBundleScansApi = (params?: BundleScanQueryParams) => {
+  return axiosInstance.get<BundleScanApiResponse>("/construction/bundle-scan", { params });
+};
+
+export const getPackingListsApi = (params?: PackingListsQueryParams) => {
+  return axiosInstance.get<PackingListApiResponse>("/construction/packing-lists", { params });
+};
+
+export const getDispatchVerificationApi = (params?: DispatchVerificationQueryParams) => {
+  return axiosInstance.get<DispatchVerificationApiResponse>("/construction/dispatch-verification", { params });
+};
+
+
 
 
 
