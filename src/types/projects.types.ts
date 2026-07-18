@@ -171,4 +171,241 @@ export interface TasksApiResponse {
   data: TasksResponseData;
 }
 
+export interface DeliverySchedule {
+  pickupDate: string | null;
+  pickupTime: string;
+  deliveryDate: string | null;
+  deliveryTime: string;
+  timings: string;
+}
 
+export interface DeliveryCarrier {
+  phone: string;
+  email: string;
+  truckNumber: string;
+  driverName: string;
+  driverPhone: string;
+}
+
+export interface DeliveryProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  location: string;
+}
+
+export interface ConstructionDelivery {
+  deliveryId: string;
+  deliveryNumber: string;
+  status: string;
+  description: string;
+  materialType: string;
+  loadWeight: number;
+  packageCount: number | null;
+  loadingEquipment: string[];
+  schedule: DeliverySchedule;
+  pickupLocation: string;
+  deliveryLocation: string;
+  stagingArea: string;
+  notes: string;
+  receivingPoc: string;
+  pickupContactPhone: string;
+  carrier: DeliveryCarrier | null;
+  project: DeliveryProject;
+}
+
+export interface DeliveriesStats {
+  inTransit: number;
+  staged: number;
+  ready: number;
+  totalToday: number;
+}
+
+export interface DeliveriesResponseData {
+  deliveries: ConstructionDelivery[];
+  total: number;
+  stats: DeliveriesStats;
+}
+
+export interface DeliveriesApiResponse {
+  success: boolean;
+  message: string;
+  data: DeliveriesResponseData;
+}
+
+export interface BundleProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+}
+
+export interface BundleLabel {
+  bundleId: string;
+  bundleNo: string;
+  bundleType: string;
+  title: string;
+  parts: string;
+  totalWeight: number;
+  maxLengthFeet: number;
+  status: string;
+  packingListId: string;
+  project: BundleProject;
+}
+
+export interface LabelStats {
+  totalBundles: number;
+  labelsPrinted: number;
+  labelsPending: number;
+  labelsPrintedToday: number;
+}
+
+export interface LabelsResponseData {
+  bundles: BundleLabel[];
+  total: number;
+  stats: LabelStats;
+}
+
+export interface LabelsApiResponse {
+  success: boolean;
+  message: string;
+  data: LabelsResponseData;
+}
+
+export interface LabelsQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  status?: string;
+}
+
+export interface ScannedBundleProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+}
+
+export interface ScannedBundle {
+  bundleId: string;
+  bundleNo: string;
+  parts: string;
+  totalWeight: number;
+  status: string;
+  scannedAt: string;
+  project: ScannedBundleProject;
+}
+
+export interface BundleScanStats {
+  bundlesScanned: number;
+  bundlesRemaining: number;
+  bundlesLoaded: number;
+}
+
+export interface BundleScanResponseData {
+  bundles: ScannedBundle[];
+  total: number;
+  stats: BundleScanStats;
+}
+
+export interface BundleScanApiResponse {
+  success: boolean;
+  message: string;
+  data: BundleScanResponseData;
+}
+
+export interface BundleScanQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  status?: string;
+}
+
+export interface PackingListProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+}
+
+export interface PackingListItem {
+  packingListId: string;
+  packingListNo: string;
+  truck: string;
+  totalBundles: number;
+  totalWeight: number;
+  destination: string;
+  status: string;
+  project: PackingListProject;
+}
+
+export interface PackingListStats {
+  totalPackingList: number;
+  loadsReadyForDispatch: number;
+  bundlesAssigned: number;
+  loadsDispatchedToday: number;
+}
+
+export interface PackingListResponseData {
+  packingLists: PackingListItem[];
+  total: number;
+  stats: PackingListStats;
+}
+
+export interface PackingListApiResponse {
+  success: boolean;
+  message: string;
+  data: PackingListResponseData;
+}
+
+export interface PackingListsQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  status?: string;
+}
+
+export interface DispatchLoadProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+}
+
+export interface DispatchLoad {
+  loadId: string;
+  packingListNo: string;
+  truck: string;
+  totalBundles: number;
+  bundleIds: string[];
+  totalWeight: number;
+  destination: string;
+  status: string;
+  project: DispatchLoadProject;
+}
+
+export interface DispatchVerificationStats {
+  loadsReadyForDispatch: number;
+  bundlesVerified: number;
+  bundlesMissing: number;
+  leadsDispatchedToday: number;
+}
+
+export interface DispatchVerificationResponseData {
+  loads: DispatchLoad[];
+  total: number;
+  stats: DispatchVerificationStats;
+}
+
+export interface DispatchVerificationApiResponse {
+  success: boolean;
+  message: string;
+  data: DispatchVerificationResponseData;
+}
+
+export interface DispatchVerificationQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  status?: string;
+}
