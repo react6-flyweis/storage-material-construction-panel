@@ -26,6 +26,7 @@ interface CalendarProps {
 export default function Calendar({ leadId }: CalendarProps) {
   const [toggle, setToggle] = React.useState(false);
   const [showDetails, setShowDetails] = React.useState(false);
+  const [selectedDeliveryId, setSelectedDeliveryId] = React.useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = React.useState(dayjs());
   const [selectedDate, setSelectedDate] = React.useState(dayjs());
 
@@ -250,7 +251,10 @@ export default function Calendar({ leadId }: CalendarProps) {
             ) : (
               deliveriesForSelectedDate.map((delivery) => (
                 <div
-                  onClick={() => setShowDetails(true)}
+                  onClick={() => {
+                    setSelectedDeliveryId(delivery.deliveryId);
+                    setShowDetails(true);
+                  }}
                   key={delivery.deliveryId}
                   className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:border-blue-200 transition-colors cursor-pointer"
                 >
@@ -325,7 +329,14 @@ export default function Calendar({ leadId }: CalendarProps) {
           </button>
         </div>
       </div>
-      <DeliveryDetailsModal open={showDetails} onClose={() => setShowDetails(false)} />
+      <DeliveryDetailsModal
+        open={showDetails}
+        onClose={() => {
+          setShowDetails(false);
+          setSelectedDeliveryId(null);
+        }}
+        deliveryId={selectedDeliveryId}
+      />
       <AddDeliveryDrawer onClose={() => setToggle(false)} open={toggle} />
     </div>
   );
