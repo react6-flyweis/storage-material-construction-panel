@@ -409,3 +409,132 @@ export interface DispatchVerificationQueryParams {
   sortBy?: string;
   status?: string;
 }
+
+export interface DeliveryDetailsResponseData {
+  delivery: ConstructionDelivery;
+}
+
+export interface DeliveryDetailsApiResponse {
+  success: boolean;
+  message: string;
+  data: DeliveryDetailsResponseData;
+}
+
+export interface MaterialRequestProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  location: string;
+}
+
+export interface MaterialRequestUser {
+  userId: string;
+  name: string;
+}
+
+export interface RequestedItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  notes?: string;
+}
+
+export interface MaterialRequest {
+  _id: string;
+  requestId: string;
+  project: MaterialRequestProject | null;
+  siteLocation: string;
+  department: string;
+  requestedBy: MaterialRequestUser;
+  requestedItems: RequestedItem[];
+  itemCount: number;
+  requestDate: string;
+  requiredBy: string | null;
+  priority: string;
+  status: string;
+  totalAmount: number;
+}
+
+export interface MaterialRequestStats {
+  totalRequests: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface MaterialRequestsResponseData {
+  materialRequests: MaterialRequest[];
+  total: number;
+  stats: MaterialRequestStats;
+}
+
+export interface MaterialRequestsApiResponse {
+  success: boolean;
+  message: string;
+  data: MaterialRequestsResponseData;
+}
+
+export interface MaterialRequestsQueryParams {
+  page?: number;
+  limit?: number;
+  project?: string;
+  department?: string;
+  status?: string;
+  requestedBy?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface BundleItem {
+  vendorQuoteLineId: string;
+  partCode: string;
+  description: string;
+  category: string;
+  color: string;
+  qty: number;
+  lengthFeet: number | null;
+  widthFeet: number | null;
+  heightFeet: number | null;
+  weight: number | null;
+  unitWeight: number | null;
+  totalWeight: number | null;
+  weightBasis: string;
+  weightSource: string;
+  markIds: string[];
+  sourceLineSnapshot: Record<string, unknown>;
+  _id: string;
+}
+
+export interface BundleDetailInfo {
+  bundleId: string;
+  bundleNo: string;
+  bundleType: string;
+  title: string;
+  items: BundleItem[];
+  totalQty: number;
+  totalWeight: number;
+  maxLengthFeet: number;
+  status: string;
+  labelPrinted: boolean;
+  verified: boolean;
+  mismatchNotes: string;
+  project: {
+    leadId: string;
+    projectName: string;
+    jobId: string;
+  };
+  packingList: {
+    _id: string;
+    packingListNo: string;
+    truckType: string;
+    truckLabel: string;
+  };
+}
+
+export interface BundleDetailsApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    bundle: BundleDetailInfo;
+  };
+}
