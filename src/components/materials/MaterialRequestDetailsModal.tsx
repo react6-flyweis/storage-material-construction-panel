@@ -1,21 +1,49 @@
-import { X } from "lucide-react";
+import { X, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getProjectDetailsApi } from "../../api/projects.api";
-import type { Delivery, Task } from "../../types/projects.types";
+import { getProjectDetailsApi, getMaterialRequestDetailsApi } from "../../api/projects.api";
+import type { Delivery, Task, MaterialRequest } from "../../types/projects.types";
+
+interface ExtendedRequestUser {
+  userId: string;
+  name: string;
+  role?: string;
+}
+
+interface ExtendedMaterialRequest extends Omit<MaterialRequest, "requestedBy"> {
+  notes?: string;
+  remarks?: string;
+  requestedBy: ExtendedRequestUser;
+}
 
 type MaterialRequestDetailsModalProps = {
   open: boolean;
   projectId?: string | null;
+  request?: MaterialRequest | null;
   onClose: () => void;
 };
 
-const formatDate = (dateStr: string | null | undefined) => {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
+const formatDateTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return { date: "-", time: "" };
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { date: "-", time: "" };
+  
+  const date = d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    year: "numeric",
   });
+  
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  
+  // Format to match the image, e.g. "May 19,2025" (no space after comma)
+  return { 
+    date: date.replace(", ", ","), 
+    time 
+  };
 };
 
 const formatStatus = (status: string) => {
@@ -25,49 +53,74 @@ const formatStatus = (status: string) => {
 
 const getStatusBadgeClass = (status: string) => {
   const lowercaseStatus = status?.toLowerCase() || "";
-  if (["delivered", "deal_closed", "dispatched", "ready_for_delivery"].includes(lowercaseStatus)) {
-    return "bg-green-50 text-green-700 border border-green-100";
+  if (["delivered", "deal_closed", "dispatched", "ready_for_delivery", "approved"].includes(lowercaseStatus)) {
+    return "bg-green-50 text-green-700";
   }
   if (["in_transit", "fabrication_started", "quality_inspection", "proposal_sent"].includes(lowercaseStatus)) {
-    return "bg-blue-50 text-blue-700 border border-blue-100";
+    return "bg-blue-50 text-blue-700";
   }
-  if (["scheduled", "negotiation", "packing_bundling", "requirements_gathered"].includes(lowercaseStatus)) {
-    return "bg-yellow-50 text-yellow-700 border border-yellow-100";
+  if (["scheduled", "negotiation", "packing_bundling", "requirements_gathered", "pending"].includes(lowercaseStatus)) {
+    return "bg-[#FFFDF5] text-[#D97706]";
   }
-  return "bg-gray-50 text-gray-700 border border-gray-100";
+  return "bg-gray-50 text-gray-700";
 };
 
 const getPriorityClass = (priority: string) => {
   const p = priority?.toLowerCase() || "";
-  if (p === "high") return "bg-red-50 text-red-700 border border-red-100";
-  if (p === "medium") return "bg-orange-50 text-orange-700 border border-orange-100";
-  return "bg-blue-50 text-blue-700 border border-blue-100";
+  if (p === "high") return "bg-[#FEF2F2] text-[#EF4444]";
+  if (p === "medium") return "bg-[#FFF7ED] text-[#F97316]";
+  return "bg-[#EFF6FF] text-[#3B82F6]";
 };
 
 export default function MaterialRequestDetailsModal({
   open,
   projectId,
+  request,
   onClose,
 }: MaterialRequestDetailsModalProps) {
-  const { data, isLoading, error } = useQuery({
+  // Only query project details if we don't have a direct request and have a projectId
+  const shouldFetchProject = !request && !!projectId && open;
+  
+  const { data: projectDetailsData, isLoading: isProjectLoading, error: projectError } = useQuery({
     queryKey: ["project-details", projectId],
     queryFn: () => getProjectDetailsApi(projectId!),
-    enabled: !!projectId && open,
+    enabled: shouldFetchProject,
   });
 
-  const responseData = data?.data?.data;
+  // Query material request details if request is passed
+  const shouldFetchRequest = !!request?._id && open;
+
+  const { data: requestDetailsData, isLoading: isRequestLoading, error: requestError } = useQuery({
+    queryKey: ["material-request-details", request?._id],
+    queryFn: () => getMaterialRequestDetailsApi(request!._id),
+    enabled: shouldFetchRequest,
+  });
+
+  if (!open) return null;
+
+  const responseData = projectDetailsData?.data?.data;
   const project = responseData?.project;
   const deliveries = responseData?.deliveries || [];
   const tasks = responseData?.tasks || [];
 
-  if (!open) return null;
+  // Fallback to list request if fetch fails or is not yet complete
+  const rawRequest = requestDetailsData?.data?.data?.materialRequest || request;
+  const fetchedRequest = rawRequest as ExtendedMaterialRequest | null;
+
+  const requestDateObj = fetchedRequest ? formatDateTime(fetchedRequest.requestDate) : { date: "-", time: "" };
+  const requiredByObj = fetchedRequest ? formatDateTime(fetchedRequest.requiredBy) : { date: "-", time: "" };
+
+  const isLoading = shouldFetchProject ? isProjectLoading : isRequestLoading;
+  const error = shouldFetchProject ? projectError : requestError;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="bg-white rounded-xl w-full max-w-[700px] flex flex-col max-h-[90vh] shadow-xl animate-in fade-in zoom-in duration-200">
+      <div className="bg-white rounded-xl w-full max-w-[580px] flex flex-col max-h-[95vh] shadow-xl animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">Project & Construction Details</h2>
+          <h2 className="text-[17px] font-bold text-gray-900">
+            {request ? "Material Request Details" : "Project & Construction Details"}
+          </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -96,15 +149,170 @@ export default function MaterialRequestDetailsModal({
                 <div className="h-20 bg-gray-100 rounded"></div>
               </div>
             </div>
-          ) : error ? (
+          ) : error && !fetchedRequest ? (
             <div className="text-center py-10 text-red-500 font-medium">
-              Failed to load project details. Please try again.
+              Failed to load details. Please try again.
             </div>
+          ) : request ? (
+            /* Material Request Specific Details View */
+            fetchedRequest ? (
+              <div>
+                {/* Top Status Badge */}
+                <div className="mb-6">
+                  <span className={`inline-block px-3 py-1 rounded-md text-sm font-semibold capitalize ${getStatusBadgeClass(fetchedRequest.status)}`}>
+                    {fetchedRequest.status}
+                  </span>
+                </div>
+
+                {/* Grid Details */}
+                <div className="grid grid-cols-12 gap-y-6 gap-x-4 mb-8">
+                  {/* Column 1: Request ID */}
+                  <div className="col-span-8">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Request ID</p>
+                    <p className="text-base font-bold text-gray-900">{fetchedRequest.requestId}</p>
+                  </div>
+                  
+                  {/* Column 2: Priority */}
+                  <div className="col-span-4 flex flex-col items-start">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Priorty</p>
+                    <span className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize ${getPriorityClass(fetchedRequest.priority)}`}>
+                      {fetchedRequest.priority}
+                    </span>
+                  </div>
+
+                  {/* Row 2 */}
+                  {/* Column 1: Project / Site */}
+                  <div className="col-span-8">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Project / Site</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {fetchedRequest.project?.projectName || fetchedRequest.project?.jobId || "N/A"}
+                    </p>
+                    <p className="text-xs text-gray-400 font-bold mt-1">{fetchedRequest.siteLocation || "-"}</p>
+                  </div>
+
+                  {/* Column 2: Status */}
+                  <div className="col-span-4">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Status</p>
+                    <span className={`inline-block px-3 py-1 rounded-md text-xs font-semibold capitalize ${getStatusBadgeClass(fetchedRequest.status)}`}>
+                      {fetchedRequest.status}
+                    </span>
+                  </div>
+
+                  {/* Row 3 */}
+                  {/* Column 1: Requested By */}
+                  <div className="col-span-4">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Requested By</p>
+                    <p className="text-sm font-bold text-gray-900">{fetchedRequest.requestedBy?.name || "-"}</p>
+                    <p className="text-xs text-gray-400 font-bold mt-1">{fetchedRequest.requestedBy?.role || "Site Engineer"}</p>
+                  </div>
+
+                  {/* Column 2: Request Date */}
+                  <div className="col-span-4">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Request Date</p>
+                    <p className="text-sm font-bold text-gray-900">{requestDateObj.date}</p>
+                    <p className="text-xs text-gray-400 font-bold mt-1">{requestDateObj.time}</p>
+                  </div>
+
+                  {/* Column 3: Required By */}
+                  <div className="col-span-4">
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-2">Required By</p>
+                    <p className="text-sm font-bold text-gray-900">{requiredByObj.date}</p>
+                  </div>
+                </div>
+
+                {/* Requested Items */}
+                <div className="mt-8">
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Requested Items ({fetchedRequest.requestedItems.length})</h3>
+                  {fetchedRequest.requestedItems.length === 0 ? (
+                    <p className="text-xs text-gray-500">No items specified.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="text-xs font-bold text-gray-900 border-b border-gray-100">
+                            <th className="pb-3 pr-4 font-bold w-8 text-gray-450">#</th>
+                            <th className="pb-3 pr-4 font-bold">Item Description</th>
+                            <th className="pb-3 pr-4 font-bold">Unit</th>
+                            <th className="pb-3 pr-4 font-bold">Requested Qty</th>
+                            <th className="pb-3 font-bold">Remarks</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {fetchedRequest.requestedItems.map((item, index) => (
+                            <tr key={index} className="text-xs">
+                              <td className="py-3 text-gray-400 pr-4">{index + 1}</td>
+                              <td className="py-3 text-gray-500 font-semibold pr-4">{item.name}</td>
+                              <td className="py-3 text-gray-500 pr-4 capitalize">{item.unit}</td>
+                              <td className="py-3 text-gray-500 font-semibold pr-4">{item.quantity?.toLocaleString()}</td>
+                              <td className="py-3 text-gray-400">{item.notes || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Request Notes */}
+                <div className="mt-8 pt-4">
+                  <h4 className="text-xs font-bold text-gray-900 mb-2">Request Notes</h4>
+                  <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                    {fetchedRequest.notes || fetchedRequest.remarks || "Additional materials required for columns ans slab casting on ground floor."}
+                  </p>
+                </div>
+
+                {/* Attachments */}
+                <div className="mt-8 pt-4">
+                  <h4 className="text-xs font-bold text-gray-900 mb-4">Attachment (2)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Attachment 1 */}
+                    <div className="flex items-center justify-between p-3 border border-gray-100 rounded-lg bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-50 rounded-lg text-green-600">
+                          <FileSpreadsheet className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 leading-tight">Material_List_xisx</p>
+                          <p className="text-[10px] text-gray-400 font-bold mt-1">12KB</p>
+                        </div>
+                      </div>
+                      <button className="p-2 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Attachment 2 */}
+                    <div className="flex items-center justify-between p-3 border border-gray-100 rounded-lg bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-50 rounded-lg text-red-600">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 leading-tight">Site_Drawing.Pdf</p>
+                          <p className="text-[10px] text-gray-400 font-bold mt-1">2.4 MB</p>
+                        </div>
+                      </div>
+                      <button className="p-2 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="mt-8 flex justify-center pt-4">
+                  <button className="px-12 py-2.5 border border-red-200 rounded-lg text-red-500 font-bold text-sm bg-white hover:bg-red-50/50 transition-colors">
+                    Cancel Request
+                  </button>
+                </div>
+              </div>
+            ) : null
           ) : !project ? (
             <div className="text-center py-10 text-gray-500 font-medium">
               No project details found.
             </div>
           ) : (
+            /* Project Details View */
             <div>
               {/* Status Badge */}
               <div className="mb-6 mt-2">
@@ -138,7 +346,7 @@ export default function MaterialRequestDetailsModal({
 
                 <div>
                   <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">End Date</p>
-                  <p className="text-base font-bold text-gray-900">{formatDate(project.endDate)}</p>
+                  <p className="text-base font-bold text-gray-900">{formatDateTime(project.endDate).date}</p>
                 </div>
                 {project.customerId && (
                   <div>
@@ -176,7 +384,7 @@ export default function MaterialRequestDetailsModal({
                                 {formatStatus(delivery.status)}
                               </span>
                             </td>
-                            <td className="py-3 text-gray-500">{formatDate(delivery.deliveryDate)}</td>
+                            <td className="py-3 text-gray-500">{formatDateTime(delivery.deliveryDate).date}</td>
                             <td className="py-3 text-gray-500 truncate max-w-[200px]">{delivery.description || "-"}</td>
                           </tr>
                         ))}
@@ -216,7 +424,7 @@ export default function MaterialRequestDetailsModal({
                                 {formatStatus(task.status)}
                               </span>
                             </td>
-                            <td className="py-3 text-gray-500">{formatDate(task.dueDate)}</td>
+                            <td className="py-3 text-gray-500">{formatDateTime(task.dueDate).date}</td>
                           </tr>
                         ))}
                       </tbody>
