@@ -1,5 +1,6 @@
-import { ArrowLeft, Check, X } from "lucide-react";
-import toast from "react-hot-toast";
+import { ArrowLeft, Check, Loader2, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getLabelsApi } from "../../api/projects.api";
 import type { DispatchLoad } from "../../types/projects.types";
 
 interface DispatchDetailModalProps {
@@ -14,31 +15,22 @@ const formatWeight = (weight?: number) => {
 };
 
 export default function DispatchDetailModal({ open, onClose, load }: DispatchDetailModalProps) {
+  const { data: labelsData, isLoading: detailBundlesLoading } = useQuery({
+    queryKey: ["detailLabels", load?.packingListNo || load?.loadId],
+    queryFn: () => getLabelsApi({ limit: 100 }),
+    enabled: open && !!load,
+  });
+
   if (!open || !load) return null;
 
-  // Bundle verification list mock data
-  const mockBundles = [
-    { id: "BND-001", expected: "Yes", scanned: "Yes", weight: 3600, status: "Verified" },
-    { id: "BND-002", expected: "Yes", scanned: "Yes", weight: 2400, status: "Verified" },
-    { id: "BND-003", expected: "Yes", scanned: "Yes", weight: 4500, status: "Verified" },
-    { id: "BND-004", expected: "Yes", scanned: "Yes", weight: 2700, status: "Verified" },
-  ];
+  const allLabels = labelsData?.data?.data?.bundles || [];
+  const filteredBundles = allLabels.filter(
+    (b) =>
+      b.packingListId === load.packingListNo ||
+      (load.bundleIds && load.bundleIds.includes(b.bundleId))
+  );
 
-  // If load has bundleIds, map over them and fallback/distribute weights, otherwise use mockBundles
-  const bundlesToRender = (load.bundleIds && load.bundleIds.length > 0)
-    ? load.bundleIds.map((id, index) => {
-        const fallbackBundle = mockBundles[index % mockBundles.length];
-        return {
-          id,
-          expected: "Yes",
-          scanned: "Yes",
-          weight: index === 0 && load.totalWeight ? Math.round(load.totalWeight * 0.3) : fallbackBundle.weight,
-          status: "Verified",
-        };
-      })
-    : mockBundles;
-
-  // Use dynamic load data if available, otherwise fallback to screenshot defaults
+  // Use dynamic load data if available, otherwise fallback to defaults
   const plannedWeight = load.totalWeight ? load.totalWeight : 36000;
   const actualWeight = load.totalWeight ? load.totalWeight - 100 : 35900;
 
@@ -65,13 +57,12 @@ export default function DispatchDetailModal({ open, onClose, load }: DispatchDet
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => toast.success(`Confirming dispatch for load ${load.loadId}...`)}
                 className="flex-1 sm:flex-none flex items-center justify-center px-6 py-2.5 bg-[#8B5CF6] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-100 hover:opacity-90 transition-all"
               >
                 Confirm Dispatch
               </button>
               <button
-                onClick={() => toast.success(`Verifying load ${load.loadId}...`)}
+
                 className="flex-1 sm:flex-none flex items-center justify-center px-6 py-2.5 bg-[#6366F1] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-100 hover:opacity-90 transition-all"
               >
                 Verify Load
@@ -135,7 +126,6 @@ export default function DispatchDetailModal({ open, onClose, load }: DispatchDet
                 </div>
               </div>
 
-
               {/* Loading Verification */}
               <div className="space-y-4">
                 <h2 className="text-lg font-bold text-gray-900 pb-2 border-b border-gray-100">Loading Verification</h2>
@@ -164,36 +154,68 @@ export default function DispatchDetailModal({ open, onClose, load }: DispatchDet
           </div>
 
           {/* Bundle Verification List */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-gray-900">Bundle Verification List</h2>
-            <div className="border border-gray-200 rounded-[20px] overflow-hidden shadow-sm">
+          <div className="space-y-4 pt-2">
+            <h2 className="text-xl font-bold text-gray-900">Bundle Verification List</h2>
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto scroll-hide">
-                <table className="w-full text-left min-w-[600px]">
+                <table className="w-full text-left min-w-[700px]">
                   <thead>
                     <tr className="bg-[#1C1F25] text-white">
-                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider w-16">#</th>
-                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider">Bundle ID</th>
-                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider">Expected</th>
-                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider">Scanned</th>
-                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider">Weight</th>
-                      <th className="px-6 py-3.5 text-xs font-bold uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider w-16">#</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Bundle ID</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Expected</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Scanned</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Weight</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
-                    {bundlesToRender.map((row, idx) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4.5 text-xs font-bold text-gray-400">{idx + 1}</td>
-                        <td className="px-6 py-4.5 text-xs font-bold text-gray-900">{row.id}</td>
-                        <td className="px-6 py-4.5 text-xs font-bold text-gray-450">{row.expected}</td>
-                        <td className="px-6 py-4.5 text-xs font-bold text-gray-450">{row.scanned}</td>
-                        <td className="px-6 py-4.5 text-xs font-bold text-gray-900">{formatWeight(row.weight)}</td>
-                        <td className="px-6 py-4.5 text-xs">
-                          <span className="text-emerald-600 font-bold">
-                            {row.status}
-                          </span>
+                    {detailBundlesLoading ? (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                            <p className="text-xs font-bold text-gray-500">Loading bundle details...</p>
+                          </div>
                         </td>
                       </tr>
-                    ))}
+                    ) : filteredBundles.length === 0 ? (
+                      // Default mockup fallbacks if no actual bundles returned by the api
+                      [
+                        { id: "BND-001", expected: "Yes", scanned: "Yes", weight: 3600, status: "Verified" },
+                        { id: "BND-002", expected: "Yes", scanned: "Yes", weight: 2400, status: "Verified" },
+                        { id: "BND-003", expected: "Yes", scanned: "Yes", weight: 4500, status: "Verified" },
+                        { id: "BND-004", expected: "Yes", scanned: "Yes", weight: 2700, status: "Verified" }
+                      ].map((row, idx) => (
+                        <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-4 py-4 text-sm font-bold text-gray-400">{idx + 1}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{row.id}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-450">{row.expected}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-450">{row.scanned}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{formatWeight(row.weight)}</td>
+                          <td className="px-4 py-4 text-sm font-semibold">
+                            <span className="text-emerald-600 font-bold">
+                              {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      filteredBundles.map((bundle, idx) => (
+                        <tr key={bundle.bundleId} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-4 py-4 text-sm font-bold text-gray-400">{idx + 1}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{bundle.bundleNo || bundle.bundleId}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-450">Yes</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-450">{bundle.status === "pending" ? "No" : "Yes"}</td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{formatWeight(bundle.totalWeight)}</td>
+                          <td className="px-4 py-4 text-sm">
+                            <span className={bundle.status === "pending" ? "text-gray-450 font-bold" : "text-emerald-600 font-bold"}>
+                              {bundle.status === "pending" ? "Pending" : "Verified"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
