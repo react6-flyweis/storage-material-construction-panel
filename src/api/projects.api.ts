@@ -1,6 +1,5 @@
 import { axiosInstance } from "./axiosInstance";
-import type { ProjectsApiResponse, ProjectDetailsApiResponse, CalendarApiResponse, DrawingsApiResponse, TasksApiResponse, DeliveriesApiResponse, LabelsApiResponse, LabelsQueryParams, BundleScanApiResponse, BundleScanQueryParams, PackingListApiResponse, PackingListsQueryParams, DispatchVerificationApiResponse, DispatchVerificationQueryParams } from "../types/projects.types";
-
+import type { ProjectsApiResponse, ProjectDetailsApiResponse, CalendarApiResponse, DrawingsApiResponse, TasksApiResponse, DeliveriesApiResponse, DeliveryDetailsApiResponse, LabelsApiResponse, LabelsQueryParams, BundleScanApiResponse, BundleScanQueryParams, PackingListApiResponse, PackingListsQueryParams, DispatchVerificationApiResponse, DispatchVerificationQueryParams, MaterialRequestsApiResponse, MaterialRequestsQueryParams, MaterialRequest, BundleDetailsApiResponse } from "../types/projects.types";
 
 export interface ProjectsQueryParams {
   page?: number;
@@ -36,6 +35,11 @@ export const getTasksApi = () => {
 export const getDeliveriesApi = () => {
   return axiosInstance.get<DeliveriesApiResponse>("/construction/deliveries");
 };
+
+export const getDeliveryDetailsApi = (deliveryId: string) => {
+  return axiosInstance.get<DeliveryDetailsApiResponse>(`/construction/deliveries/${deliveryId}`);
+};
+
 
 export interface CreateTaskPayload {
   title: string;
@@ -81,6 +85,10 @@ export const scanBundleApi = (payload: ScanBundlePayload) => {
   return axiosInstance.post("/construction/deliveries/scan-bundle", payload);
 };
 
+export const scanBundleScanApi = (payload: ScanBundlePayload) => {
+  return axiosInstance.post("/construction/bundle-scan/scan", payload);
+};
+
 export const getLabelsApi = (params?: LabelsQueryParams) => {
   return axiosInstance.get<LabelsApiResponse>("/construction/labels", { params });
 };
@@ -96,6 +104,59 @@ export const getPackingListsApi = (params?: PackingListsQueryParams) => {
 export const getDispatchVerificationApi = (params?: DispatchVerificationQueryParams) => {
   return axiosInstance.get<DispatchVerificationApiResponse>("/construction/dispatch-verification", { params });
 };
+
+export const getMaterialRequestsApi = (params?: MaterialRequestsQueryParams) => {
+  return axiosInstance.get<MaterialRequestsApiResponse>("/construction/material-requests", { params });
+};
+
+export const getMaterialRequestDetailsApi = (id: string) => {
+  return axiosInstance.get<{ success: boolean; message: string; data: { materialRequest: MaterialRequest } }>(`/construction/material-requests/${id}`);
+};
+
+export interface CreateMaterialRequestPayload {
+  leadId: string;
+  siteLocation: string;
+  department: string;
+  requestedItems: {
+    name: string;
+    quantity: number;
+    unit: string;
+    notes?: string;
+  }[];
+  requiredBy: string;
+  priority: string;
+}
+
+export const createMaterialRequestApi = (payload: CreateMaterialRequestPayload) => {
+  return axiosInstance.post("/construction/material-requests", payload);
+};
+
+export const getBundleDetailsApi = (bundleId: string) => {
+  return axiosInstance.get<BundleDetailsApiResponse>(`/construction/bundles/${bundleId}`);
+};
+
+export const verifyBundleApi = (bundleId: string) => {
+  return axiosInstance.post(`/construction/bundles/${bundleId}/verify`);
+};
+
+export const markBundleStagedApi = (bundleId: string) => {
+  return axiosInstance.post(`/construction/bundles/${bundleId}/mark-staged`);
+};
+
+export const markBundleLoadedApi = (bundleId: string) => {
+  return axiosInstance.post(`/construction/bundles/${bundleId}/mark-loaded`);
+};
+
+export const reportBundleMismatchApi = (bundleId: string, payload: { notes: string }) => {
+  return axiosInstance.post(`/construction/bundles/${bundleId}/report-mismatch`, payload);
+};
+
+export const reprintBundleLabelApi = (bundleId: string) => {
+  return axiosInstance.post(`/construction/bundles/${bundleId}/reprint-label`);
+};
+
+
+
 
 
 
