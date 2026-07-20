@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Search, ChevronDown, Download, ArrowUpDown, QrCode, Keyboard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getBundleScansApi } from "../api/projects.api";
+import { getBundleScansApi, scanBundleScanApi } from "../api/projects.api";
 import CustomSelect from "../components/common/CustomSelect";
 import ScanQRCodeModal from "../components/common/ScanQRCodeModal";
-import ScanResultModal from "../components/common/ScanResultModal";
-import toast from "react-hot-toast";
+import BundleDetailsModal from "../components/common/BundleDetailsModal";
+
 
 const formatStatus = (status?: string) => {
   if (!status) return "-";
@@ -81,9 +81,9 @@ export default function BundleScan() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   const stats = [
-    { title: "Bundles Scanned", value: apiStats?.bundlesScanned ?? 0, trend: "5.62%", isUp: true, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Bundles Remaining", value: apiStats?.bundlesRemaining ?? 0, trend: "11.4%", isUp: true, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Bundles Loaded", value: apiStats?.bundlesLoaded ?? 0, trend: "8.52%", isUp: true, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Bundles Scanned", value: apiStats?.bundlesScanned ?? 0, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Bundles Remaining", value: apiStats?.bundlesRemaining ?? 0, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Bundles Loaded", value: apiStats?.bundlesLoaded ?? 0, color: "text-yellow-600", bg: "bg-yellow-50" },
   ];
 
   return (
@@ -96,17 +96,16 @@ export default function BundleScan() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
-            onClick={() => {
-              toast.success("Exporting bundle scan history...");
-            }}
+
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
           >
             <Download className="w-4 h-4" />
             Export
           </button>
           <button
+
             onClick={() => setScanOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-100 hover:opacity-90 transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-750 shadow-sm hover:bg-gray-50 transition-all"
           >
             <QrCode className="w-4 h-4" />
             Scan QR Code
@@ -131,15 +130,13 @@ export default function BundleScan() {
                 <QrCode className={`w-5 h-5 ${stat.color}`} />
               </div>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">
-              {isLoading ? "..." : stat.value}
-            </h3>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] sm:text-xs font-bold ${stat.isUp ? "text-emerald-500" : "text-red-500"}`}>
-                {stat.isUp ? "▲" : "▼"} {stat.trend}
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">from last month</span>
-            </div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-gray-100 animate-pulse rounded-lg mb-2" />
+            ) : (
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">
+                {stat.value}
+              </h3>
+            )}
           </div>
         ))}
       </div>
@@ -246,7 +243,7 @@ export default function BundleScan() {
                       </td>
                       <td className="px-6 py-5">
                         <p className="text-xs font-bold text-gray-900 mb-1 leading-tight">
-                          {row.project?.projectName || "No Project"}
+                          {row.project?.projectName || "N/A"}
                         </p>
                         <p className="text-[10px] font-bold text-gray-400">
                           {row.project?.jobId || "-"}
@@ -269,7 +266,7 @@ export default function BundleScan() {
                       <td className="px-6 py-5 text-right">
                         <button
                           onClick={() => {
-                            setSelectedBundleId(row.bundleNo || rowId);
+                            setSelectedBundleId(rowId);
                             setResultOpen(true);
                           }}
                           className="bg-[#1D51A4] text-white px-5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-sm"
@@ -321,11 +318,10 @@ export default function BundleScan() {
                       {showEllipsis && <span className="text-gray-400 px-1">...</span>}
                       <button
                         onClick={() => setPage(p)}
-                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
-                          page === p
-                            ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
-                            : "text-gray-400 hover:bg-white hover:text-gray-900"
-                        }`}
+                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${page === p
+                          ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                          : "text-gray-400 hover:bg-white hover:text-gray-900"
+                          }`}
                       >
                         {p}
                       </button>
@@ -347,19 +343,19 @@ export default function BundleScan() {
       <ScanQRCodeModal
         open={scanOpen}
         onClose={() => setScanOpen(false)}
+        scanApiFn={scanBundleScanApi}
         onScanSuccess={(bundleId) => {
           setSelectedBundleId(bundleId);
           setResultOpen(true);
         }}
       />
 
-      <ScanResultModal
+      <BundleDetailsModal
         open={resultOpen}
         onClose={() => setResultOpen(false)}
         bundleId={selectedBundleId}
         onBack={() => {
           setResultOpen(false);
-          setScanOpen(true);
         }}
       />
     </div>
