@@ -2,21 +2,32 @@ import { Camera, X } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { scanBundleApi } from "../../api/projects.api";
-import type { AxiosError } from "axios";
+import type { AxiosError, AxiosResponse } from "axios";
 import toast from "react-hot-toast";
+
+interface ScanResponse {
+  success: boolean;
+  message: string;
+  data: {
+    bundleId: string;
+    bundleNo: string;
+    [key: string]: unknown;
+  };
+}
 
 type ScanQRCodeModalProps = {
   open: boolean;
   onClose: () => void;
   onScanSuccess: (bundleId: string) => void;
+  scanApiFn?: (payload: { bundleId: string }) => Promise<AxiosResponse<ScanResponse>>;
 };
 
-export default function ScanQRCodeModal({ open, onClose, onScanSuccess }: ScanQRCodeModalProps) {
+export default function ScanQRCodeModal({ open, onClose, onScanSuccess, scanApiFn }: ScanQRCodeModalProps) {
   const [bundleId, setBundleId] = useState("");
   const queryClient = useQueryClient();
 
   const scanMutation = useMutation({
-    mutationFn: scanBundleApi,
+    mutationFn: scanApiFn || (scanBundleApi as unknown as (payload: { bundleId: string }) => Promise<AxiosResponse<ScanResponse>>),
   });
 
   if (!open) return null;
@@ -32,16 +43,19 @@ export default function ScanQRCodeModal({ open, onClose, onScanSuccess }: ScanQR
     scanMutation.mutate(
       { bundleId: id },
       {
-        onSuccess: () => {
+        onSuccess: (response: AxiosResponse<ScanResponse>) => {
           queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+          queryClient.invalidateQueries({ queryKey: ["bundleScans"] });
           setBundleId("");
-          onScanSuccess(id);
+          const targetId = response?.data?.data?.bundleId || id;
+          onScanSuccess(targetId);
           onClose();
           toast.success(`Successfully scanned ${id}`);
         },
         onError: (error) => {
           console.warn("Scan API error, falling back to mock UI for demo:", error);
           queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+          queryClient.invalidateQueries({ queryKey: ["bundleScans"] });
           setBundleId("");
           onScanSuccess(id);
           onClose();
