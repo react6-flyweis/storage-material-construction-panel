@@ -199,7 +199,7 @@ export default function MaterialsViewPage() {
           <RequestMaterialModel
             open={openRequestModel}
             onClose={() => setRequestModel(false)}
-            onCreate={(data) => {
+            onCreate={(data: any) => {
               setSuccessTitle("Material Requested Successfully");
               setTempMaterial({
                 material: data.material,
