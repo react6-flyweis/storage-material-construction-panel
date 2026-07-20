@@ -81,10 +81,10 @@ export default function LabelPrinting() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   const stats = [
-    { title: "Total Bundles", value: apiStats?.totalBundles ?? 0, trend: "5.62%", isUp: true, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Labels Printed", value: apiStats?.labelsPrinted ?? 0, trend: "11.4%", isUp: true, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Labels Pending", value: apiStats?.labelsPending ?? 0, trend: "8.52%", isUp: true, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { title: "Labels Printed Today", value: apiStats?.labelsPrintedToday ?? 0, trend: "7.45%", isUp: false, color: "text-red-600", bg: "bg-red-50" },
+    { title: "Total Bundles", value: apiStats?.totalBundles ?? 0, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Labels Printed", value: apiStats?.labelsPrinted ?? 0, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Labels Pending", value: apiStats?.labelsPending ?? 0, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Labels Printed Today", value: apiStats?.labelsPrintedToday ?? 0, color: "text-red-600", bg: "bg-red-50" },
   ];
 
   // Check if all visible bundles are selected
@@ -115,9 +115,7 @@ export default function LabelPrinting() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
-            onClick={() => {
-              toast.success("Exporting bundle labels report...");
-            }}
+
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
           >
             <Download className="w-4 h-4" />
@@ -148,15 +146,13 @@ export default function LabelPrinting() {
                 <Tag className={`w-5 h-5 ${stat.color}`} />
               </div>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">
-              {isLoading ? "..." : stat.value}
-            </h3>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] sm:text-xs font-bold ${stat.isUp ? "text-emerald-500" : "text-red-500"}`}>
-                {stat.isUp ? "▲" : "▼"} {stat.trend}
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">from last month</span>
-            </div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-gray-100 animate-pulse rounded-lg mb-2" />
+            ) : (
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">
+                {stat.value}
+              </h3>
+            )}
           </div>
         ))}
       </div>
