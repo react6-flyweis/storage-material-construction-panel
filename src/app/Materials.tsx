@@ -1,154 +1,137 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import StatsOverview from "../components/cards/StatCard";
 import SuccessModal from "../components/common/SuccessModal";
 import RequestMaterialModel from "../components/requestMaterialModel";
 import MaterialRequestDetailsModal from "../components/materials/MaterialRequestDetailsModal";
 import { Plus } from "lucide-react";
+import { getMaterialRequestsApi, getProjectsApi } from "../api/projects.api";
+import type { MaterialRequest } from "../types/projects.types";
+
+const formatDateTime = (dateStr: string) => {
+  if (!dateStr) return { date: "-", time: "-" };
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { date: "-", time: "-" };
+  
+  const date = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  
+  return { date, time };
+};
+
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
 
 export default function Materials() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null);
+
+  // Filters State
+  const [projectFilter, setProjectFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [requestedByFilter, setRequestedByFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+
+  // Fetch Projects for Filter Dropdown
+  const { data: projectsDropdownData } = useQuery({
+    queryKey: ["projects-dropdown"],
+    queryFn: () => getProjectsApi({ page: 1, limit: 100 }),
+  });
+  const projectsList = projectsDropdownData?.data?.data?.projects || [];
+
+  // Fetch Material Requests
+  const { data, isLoading, error } = useQuery({
+    queryKey: [
+      "material-requests",
+      page,
+      limit,
+      projectFilter,
+      departmentFilter,
+      statusFilter,
+      requestedByFilter,
+      startDateFilter,
+      endDateFilter,
+    ],
+    queryFn: () =>
+      getMaterialRequestsApi({
+        page,
+        limit,
+        project: projectFilter || undefined,
+        department: departmentFilter || undefined,
+        status: statusFilter || undefined,
+        requestedBy: requestedByFilter || undefined,
+        startDate: startDateFilter || undefined,
+        endDate: endDateFilter || undefined,
+      }),
+  });
+
+  const responseData = data?.data?.data;
+  const requests = responseData?.materialRequests || [];
+  const total = responseData?.total || 0;
+  const statsData = responseData?.stats;
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  // Extract unique departments and requesters from current list for filters
+  const uniqueDepartments = Array.from(
+    new Set(requests.map((r) => r.department).filter(Boolean))
+  );
+  const uniqueRequesters = Array.from(
+    new Set(requests.map((r) => r.requestedBy?.name).filter(Boolean))
+  );
+
   const stats = [
     {
       key: "total",
       title: "Total Requests",
-      value: 48,
+      value: statsData?.totalRequests ?? 0,
       iconBg: "#F5F3FF",
       iconsvg: <div className="text-purple-600 text-lg">💰</div>,
-      trend: { value: "All", label: "Payment Requests", isUp: true },
     },
     {
       key: "pending",
       title: "Pending",
-      value: 18,
+      value: statsData?.pending ?? 0,
       iconBg: "#F0FDF4",
       iconsvg: <div className="text-green-600 text-lg">🛍️</div>,
-      trend: { value: "$245,680.150", label: "", isUp: true },
     },
     {
       key: "approved",
       title: "Approved",
-      value: 22,
+      value: statsData?.approved ?? 0,
       iconBg: "#FEFCE8",
       iconsvg: <div className="text-yellow-600 text-lg">🔓</div>,
-      trend: { value: "582,390.75", label: "", isUp: true },
     },
     {
       key: "rejected",
       title: "Rejected",
-      value: 6,
+      value: statsData?.rejected ?? 0,
       iconBg: "#FEF2F2",
       iconsvg: <div className="text-red-600 text-lg">⌛</div>,
-      trend: { value: "578,420.20", label: "", isUp: false },
-    },
-  ];
-
-  const requests = [
-    {
-      id: "MR-2025-0031",
-      site: "Downtown Office Complex",
-      location: "Construction Site A",
-      items: "8 Items",
-      itemsDesc: "Steel,Cements,Rocks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 23,2025",
-      status: "Pending",
-      priority: "High",
-      color: "orange",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "Residential Tower A",
-      location: "Residential Site",
-      items: "6 Items",
-      itemsDesc: "Cement,Sand,Bricks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 29,2025",
-      status: "Approved",
-      priority: "Medium",
-      color: "green",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "Downtown Office Complex",
-      location: "Construction Site A",
-      items: "8 Items",
-      itemsDesc: "Steel,Cements,Rocks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 15,2025",
-      status: "Rejected",
-      priority: "Medium",
-      color: "red",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "ABC Construction LLC.",
-      location: "Construction Site A",
-      items: "6 Items",
-      itemsDesc: "Cement,Sand,Bricks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 23,2025",
-      status: "Pending",
-      priority: "High",
-      color: "orange",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "Downtown Office Complex",
-      location: "Construction Site A",
-      items: "8 Items",
-      itemsDesc: "Steel,Cements,Rocks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 19,2025",
-      status: "Pending",
-      priority: "Medium",
-      color: "orange",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "ABC Construction LLC.",
-      location: "Construction Site A",
-      items: "6 Items",
-      itemsDesc: "Cement,Sand,Bricks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 23,2025",
-      status: "Approved",
-      priority: "Low",
-      color: "green",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "Residential Tower A",
-      location: "Residential Site",
-      items: "8 Items",
-      itemsDesc: "Steel,Cements,Rocks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 23,2025",
-      status: "Rejected",
-      priority: "High",
-      color: "red",
-    },
-    {
-      id: "MR-2025-0031",
-      site: "ABC Construction LLC.",
-      location: "Construction Site A",
-      items: "6 Items",
-      itemsDesc: "Cement,Sand,Bricks..",
-      date: "May 19,2025",
-      time: "03:40 PM",
-      required: "May 23,2025",
-      status: "Approved",
-      priority: "Low",
-      color: "green",
     },
   ];
 
@@ -184,32 +167,78 @@ export default function Materials() {
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             Projects
           </label>
-          <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100">
-            <option>All Projects</option>
+          <select
+            value={projectFilter}
+            onChange={(e) => {
+              setProjectFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">All Projects</option>
+            {projectsList.map((proj: any) => (
+              <option key={proj._id} value={proj.leadId || proj._id}>
+                {proj.projectName || proj.jobId}
+              </option>
+            ))}
           </select>
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             Departments
           </label>
-          <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100">
-            <option>All Departments</option>
+          <select
+            value={departmentFilter}
+            onChange={(e) => {
+              setDepartmentFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">All Departments</option>
+            {uniqueDepartments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
           </select>
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             Status
           </label>
-          <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100">
-            <option>All Status</option>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
           </select>
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             Requested By
           </label>
-          <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100">
-            <option>All</option>
+          <select
+            value={requestedByFilter}
+            onChange={(e) => {
+              setRequestedByFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">All</option>
+            {uniqueRequesters.map((reqName) => (
+              <option key={reqName} value={reqName}>
+                {reqName}
+              </option>
+            ))}
           </select>
         </div>
         <div className="space-y-1">
@@ -217,9 +246,25 @@ export default function Materials() {
             Date Range
           </label>
           <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 flex items-center justify-between cursor-pointer">
-            <input type="date" className="bg-transparent outline-none cursor-pointer w-full text-[10px] sm:text-[11px] text-gray-500" />
+            <input
+              type="date"
+              value={startDateFilter}
+              onChange={(e) => {
+                setStartDateFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent outline-none cursor-pointer w-full text-[10px] sm:text-[11px] text-gray-500"
+            />
             <span className="mx-1 text-gray-400">-</span>
-            <input type="date" className="bg-transparent outline-none cursor-pointer w-full text-[10px] sm:text-[11px] text-gray-500" />
+            <input
+              type="date"
+              value={endDateFilter}
+              onChange={(e) => {
+                setEndDateFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent outline-none cursor-pointer w-full text-[10px] sm:text-[11px] text-gray-500"
+            />
           </div>
         </div>
       </div>
@@ -234,7 +279,7 @@ export default function Materials() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
         <div className="p-4 border-b border-gray-50 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">
-            Material Request (54)
+            Material Request ({total})
           </h3>
         </div>
 
@@ -253,73 +298,101 @@ export default function Materials() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {requests.map((req, i) => (
-                <tr
-                  key={i}
-                  className="text-[12px] hover:bg-gray-50/50 transition-colors"
-                >
-                  <td className="px-5 py-3.5 font-bold text-gray-900">
-                    {req.id}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <p className="font-bold text-gray-700 leading-tight">{req.site}</p>
-                    <p className="text-[10px] text-gray-400 font-medium">
-                      {req.location}
-                    </p>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <p className="font-bold text-gray-700 leading-tight">{req.items}</p>
-                    <p className="text-[10px] text-gray-400 font-medium truncate w-32">
-                      {req.itemsDesc}
-                    </p>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <p className="font-bold text-gray-700 leading-tight">{req.date}</p>
-                    <p className="text-[10px] text-gray-400 font-medium">
-                      {req.time}
-                    </p>
-                  </td>
-                  <td className="px-5 py-3.5 font-bold text-gray-700">
-                    {req.required}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span
-                      className={`text-[10px] font-bold ${
-                        req.color === "orange"
-                          ? "text-orange-500"
-                          : req.color === "green"
-                            ? "text-green-600"
-                            : "text-red-500"
-                      }`}
-                    >
-                      {req.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${
-                        req.priority === "High"
-                          ? "bg-red-50 text-red-600 border-red-100"
-                          : req.priority === "Medium"
-                            ? "bg-yellow-50 text-yellow-600 border-yellow-100"
-                            : "bg-blue-50 text-blue-600 border-blue-100"
-                      }`}
-                    >
-                      {req.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    <button 
-                      onClick={() => {
-                        setDetailsOpen(true);
-                      }}
-                      className="text-xs font-bold text-gray-700 bg-white border border-gray-200 px-4 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      View
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-gray-500 font-medium">
+                    Loading material requests...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-red-500 font-medium">
+                    Error loading material requests.
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-gray-500 font-medium">
+                    No material requests found.
+                  </td>
+                </tr>
+              ) : (
+                requests.map((req: MaterialRequest) => {
+                  const { date, time } = formatDateTime(req.requestDate);
+                  return (
+                    <tr
+                      key={req._id}
+                      className="text-[12px] hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-5 py-3.5 font-bold text-gray-900">
+                        {req.requestId}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-bold text-gray-700 leading-tight">
+                          {req.project?.projectName || "N/A"}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium">
+                          {req.siteLocation}
+                        </p>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-bold text-gray-700 leading-tight">
+                          {req.itemCount} {req.itemCount === 1 ? "Item" : "Items"}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium truncate w-32">
+                          {req.requestedItems.map((i) => i.name).join(", ")}
+                        </p>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-bold text-gray-700 leading-tight">{date}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">
+                          {time}
+                        </p>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-gray-700">
+                        {formatDate(req.requiredBy)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`text-[10px] font-bold capitalize ${
+                            req.status === "pending"
+                              ? "text-orange-500"
+                              : req.status === "approved"
+                                ? "text-green-600"
+                                : "text-red-500"
+                          }`}
+                        >
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border capitalize ${
+                            req.priority === "high"
+                              ? "bg-red-50 text-red-600 border-red-100"
+                              : req.priority === "medium"
+                                ? "bg-yellow-50 text-yellow-600 border-yellow-100"
+                                : "bg-blue-50 text-blue-600 border-blue-100"
+                          }`}
+                        >
+                          {req.priority}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <button
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setDetailsOpen(true);
+                          }}
+                          className="text-xs font-bold text-gray-700 bg-white border border-gray-200 px-4 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -328,14 +401,21 @@ export default function Materials() {
         <div className="p-4 sm:p-6 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 order-2 sm:order-1">
             <span className="text-sm font-medium text-gray-400">Showing</span>
-            <select className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-sm font-bold text-gray-700">
-              <option>10</option>
+            <select
+              disabled
+              className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-sm font-bold text-gray-700"
+            >
+              <option>{limit}</option>
             </select>
             <span className="text-sm font-medium text-gray-400">Results</span>
           </div>
 
           <div className="flex items-center gap-2 order-1 sm:order-2">
-            <button className="p-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg transition-colors">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="p-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -351,24 +431,28 @@ export default function Materials() {
               </svg>
             </button>
             <div className="flex items-center gap-1">
-              {[1, 2, 3].map((page) => (
-                <button
-                  key={page}
-                  className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
-                    page === 1
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                      : "text-gray-400 hover:bg-gray-50"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-              <span className="text-gray-300 px-1">...</span>
-              <button className="w-8 h-8 rounded-lg text-gray-400 text-sm font-bold hover:bg-gray-50">
-                15
-              </button>
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
+                      pageNum === page
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                        : "text-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
             </div>
-            <button className="p-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg transition-colors">
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="p-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -395,10 +479,20 @@ export default function Materials() {
       <RequestMaterialModel
         onClose={() => setIsCreateOpen(false)}
         open={isCreateOpen}
+        onCreate={() => {
+          setIsCreateOpen(false);
+          setSuccessOpen(true);
+        }}
       />
-      <MaterialRequestDetailsModal 
-        open={detailsOpen} 
-        onClose={() => setDetailsOpen(false)} 
+      <MaterialRequestDetailsModal
+        open={detailsOpen}
+        projectId={selectedProjectId}
+        request={selectedRequest}
+        onClose={() => {
+          setDetailsOpen(false);
+          setSelectedProjectId(null);
+          setSelectedRequest(null);
+        }}
       />
     </div>
   );
