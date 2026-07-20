@@ -12,7 +12,7 @@ interface PackingListDetailModalProps {
 
 const formatWeight = (weight?: number) => {
   if (weight === undefined || weight === null) return "-";
-  return `${weight.toLocaleString()} LBS`;
+  return `${weight.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LBS`;
 };
 
 export default function PackingListDetailModal({ open, onClose, packingList }: PackingListDetailModalProps) {
@@ -242,7 +242,7 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
                               : idx === 0 ? 20 : idx === 1 ? 30 : idx === 2 ? 100 : 20}
                           </td>
                           <td className="px-4 py-4 text-sm font-bold text-gray-500">
-                            {bundle.maxLengthFeet ? `${bundle.maxLengthFeet}ft` : "-"}
+                            {bundle.maxLengthFeet ? `${Number(bundle.maxLengthFeet).toFixed(2)}ft` : "-"}
                           </td>
                           <td className="px-4 py-4 text-sm font-bold text-gray-900">{formatWeight(bundle.totalWeight)}</td>
                           <td className="px-4 py-4 text-sm">
