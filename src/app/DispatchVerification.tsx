@@ -37,6 +37,11 @@ export default function DispatchVerification() {
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedLoad, setSelectedLoad] = useState<DispatchLoad | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmLoadId, setConfirmLoadId] = useState("");
+  const [isVerifyOpen, setIsVerifyOpen] = useState(false);
+  const [verifyLoadId, setVerifyLoadId] = useState("");
+
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -69,10 +74,10 @@ export default function DispatchVerification() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   const stats = [
-    { title: "Loads Ready for Dispatch", value: apiStats?.loadsReadyForDispatch ?? 0, trend: "5.62%", isUp: true, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Bundles Verified", value: apiStats?.bundlesVerified ?? 0, trend: "11.4%", isUp: true, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Bundles Missing", value: apiStats?.bundlesMissing ?? 0, trend: "8.52%", isUp: true, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { title: "Leads Dispatched Today", value: apiStats?.leadsDispatchedToday ?? 0, trend: "7.45%", isUp: false, color: "text-red-600", bg: "bg-red-50" },
+    { title: "Loads Ready for Dispatch", value: apiStats?.loadsReadyForDispatch ?? 0, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Bundles Verified", value: apiStats?.bundlesVerified ?? 0, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Bundles Missing", value: apiStats?.bundlesMissing ?? 0, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Leads Dispatched Today", value: apiStats?.leadsDispatchedToday ?? 0, color: "text-red-600", bg: "bg-red-50" },
   ];
 
   return (
@@ -85,20 +90,26 @@ export default function DispatchVerification() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
-            onClick={() => toast.success("Exporting dispatch verification reports...")}
+
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
           >
             <Download className="w-4 h-4" />
             Export
           </button>
           <button
-            onClick={() => toast.success("Confirming dispatch for selected loads...")}
+            onClick={() => {
+              setConfirmLoadId("");
+              setIsConfirmOpen(true);
+            }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#8B5CF6] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-100 hover:opacity-90 transition-all"
           >
             Confirm Dispatch
           </button>
           <button
-            onClick={() => toast.success("Initiating load verification flow...")}
+            onClick={() => {
+              setVerifyLoadId("");
+              setIsVerifyOpen(true);
+            }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-100 hover:opacity-90 transition-all"
           >
             Verify Load
@@ -116,13 +127,11 @@ export default function DispatchVerification() {
                 <ShieldCheck className={`w-5 h-5 ${stat.color}`} />
               </div>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">{stat.value}</h3>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] sm:text-xs font-bold ${stat.isUp ? "text-emerald-500" : "text-red-500"}`}>
-                {stat.isUp ? "▲" : "▼"} {stat.trend}
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">from last month</span>
-            </div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-gray-100 animate-pulse rounded-lg mb-2" />
+            ) : (
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">{stat.value}</h3>
+            )}
           </div>
         ))}
       </div>
@@ -310,11 +319,10 @@ export default function DispatchVerification() {
                     <button
                       key={pNum}
                       onClick={() => setPage(pNum)}
-                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
-                        page === pNum
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${page === pNum
                           ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
                           : "text-gray-400 hover:bg-white hover:text-gray-900"
-                      }`}
+                        }`}
                     >
                       {pNum}
                     </button>
@@ -338,7 +346,130 @@ export default function DispatchVerification() {
         onClose={() => setIsModalOpen(false)}
         load={selectedLoad}
       />
+
+      {/* Confirm Dispatch Dialog */}
+      {isConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setIsConfirmOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[500px] bg-white rounded-[24px] p-8 flex flex-col shadow-2xl relative"
+          >
+            <h2 className="text-black text-center text-[28px] sm:text-[32px] font-bold mb-6 tracking-tight">
+              Confirm Dispatch
+            </h2>
+
+            <div className="space-y-2 mb-8">
+              <label htmlFor="confirm-load-id-input" className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                Enter Load ID
+              </label>
+              <input
+                id="confirm-load-id-input"
+                type="text"
+                value={confirmLoadId}
+                onChange={(e) => setConfirmLoadId(e.target.value)}
+                placeholder="LOAD-001"
+                className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setIsConfirmOpen(false)}
+                className="flex-1 py-3 bg-[#CCCCCC] text-white rounded-xl text-sm font-bold hover:opacity-95 transition-all text-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!confirmLoadId.trim()) {
+                    toast.error("Please enter a Load ID");
+                    return;
+                  }
+                  const matched = loads.find(
+                    (l) => l.loadId.toLowerCase() === confirmLoadId.trim().toLowerCase()
+                  );
+                  if (matched) {
+                    setSelectedLoad(matched);
+                    setIsModalOpen(true);
+                    setIsConfirmOpen(false);
+                  } else {
+                    toast.error(`Load ID "${confirmLoadId}" not found`);
+                  }
+                }}
+                className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-750 hover:to-indigo-750 text-white rounded-xl text-sm font-bold shadow-md hover:opacity-95 transition-all text-center"
+              >
+                View Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Load Dialog */}
+      {isVerifyOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setIsVerifyOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[500px] bg-white rounded-[24px] p-8 flex flex-col shadow-2xl relative"
+          >
+            <h2 className="text-black text-center text-[28px] sm:text-[32px] font-bold mb-6 tracking-tight">
+              Verify Load
+            </h2>
+
+            <div className="space-y-2 mb-8">
+              <label htmlFor="verify-load-id-input" className="block text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                Enter Load ID
+              </label>
+              <input
+                id="verify-load-id-input"
+                type="text"
+                value={verifyLoadId}
+                onChange={(e) => setVerifyLoadId(e.target.value)}
+                placeholder="LOAD-001"
+                className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setIsVerifyOpen(false)}
+                className="flex-1 py-3 bg-[#CCCCCC] text-white rounded-xl text-sm font-bold hover:opacity-95 transition-all text-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!verifyLoadId.trim()) {
+                    toast.error("Please enter a Load ID");
+                    return;
+                  }
+                  const matched = loads.find(
+                    (l) => l.loadId.toLowerCase() === verifyLoadId.trim().toLowerCase()
+                  );
+                  if (matched) {
+                    setSelectedLoad(matched);
+                    setIsModalOpen(true);
+                    setIsVerifyOpen(false);
+                  } else {
+                    toast.error(`Load ID "${verifyLoadId}" not found`);
+                  }
+                }}
+                className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-750 hover:to-indigo-750 text-white rounded-xl text-sm font-bold shadow-md hover:opacity-95 transition-all text-center"
+              >
+                Verify Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
