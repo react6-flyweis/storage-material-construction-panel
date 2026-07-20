@@ -13,7 +13,7 @@ export default function UpdateSiteContactModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white rounded-[24px] w-full max-w-[600px] shadow-xl overflow-hidden">
+      <div className="bg-white rounded-xl max-h-[85vh] w-full max-w-[600px] shadow-xl overflow-y-scroll">
         {/* Header */}
         <div className="flex items-start justify-between px-8 pt-8 pb-4">
           <div>
