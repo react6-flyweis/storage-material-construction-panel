@@ -3,7 +3,6 @@ import { Search, ChevronDown, Download, ListChecks, Loader2 } from "lucide-react
 import { useQuery } from "@tanstack/react-query";
 import { getPackingListsApi } from "../api/projects.api";
 import CustomSelect from "../components/common/CustomSelect";
-import toast from "react-hot-toast";
 import type { PackingListItem } from "../types/projects.types";
 import PackingListDetailModal from "../components/common/PackingListDetailModal";
 
@@ -61,10 +60,10 @@ export default function PackingLists() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   const stats = [
-    { title: "Total Packing List", value: apiStats?.totalPackingList ?? 0, trend: "5.62%", isUp: true, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Loads Ready For Dispatch", value: apiStats?.loadsReadyForDispatch ?? 0, trend: "11.4%", isUp: true, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Bundles Assigned", value: apiStats?.bundlesAssigned ?? 0, trend: "8.52%", isUp: true, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { title: "Leads Dispatch Today", value: apiStats?.loadsDispatchedToday ?? 0, trend: "7.45%", isUp: false, color: "text-red-600", bg: "bg-red-50" },
+    { title: "Total Packing List", value: apiStats?.totalPackingList ?? 0, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Loads Ready For Dispatch", value: apiStats?.loadsReadyForDispatch ?? 0, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Bundles Assigned", value: apiStats?.bundlesAssigned ?? 0, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Leads Dispatch Today", value: apiStats?.loadsDispatchedToday ?? 0, color: "text-red-600", bg: "bg-red-50" },
   ];
 
   return (
@@ -77,9 +76,6 @@ export default function PackingLists() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              toast.success("Exporting packing lists report...");
-            }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
           >
             <Download className="w-4 h-4" />
@@ -98,13 +94,11 @@ export default function PackingLists() {
                 <ListChecks className={`w-5 h-5 ${stat.color}`} />
               </div>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">{stat.value}</h3>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] sm:text-xs font-bold ${stat.isUp ? "text-emerald-500" : "text-red-500"}`}>
-                {stat.isUp ? "▲" : "▼"} {stat.trend}
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">from last month</span>
-            </div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-gray-100 animate-pulse rounded-lg mb-2" />
+            ) : (
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 tracking-tight">{stat.value}</h3>
+            )}
           </div>
         ))}
       </div>
@@ -273,8 +267,8 @@ export default function PackingLists() {
                     key={p}
                     onClick={() => setPage(p)}
                     className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${page === p
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
-                        : "text-gray-400 hover:bg-white hover:text-gray-900"
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                      : "text-gray-400 hover:bg-white hover:text-gray-900"
                       }`}
                   >
                     {p}
