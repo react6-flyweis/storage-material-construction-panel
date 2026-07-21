@@ -1,4 +1,6 @@
 import toast from "react-hot-toast";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export interface QRModalData {
   projectName?: string;
@@ -161,3 +163,7 @@ export const printQRCodeLabel = (data: QRModalData) => {
   `);
   printWindow.document.close();
 };
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
