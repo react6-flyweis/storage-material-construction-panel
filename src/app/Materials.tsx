@@ -101,7 +101,12 @@ export default function Materials() {
     new Set(requests.map((r) => r.department).filter(Boolean))
   );
   const uniqueRequesters = Array.from(
-    new Set(requests.map((r) => r.requestedBy?.name).filter(Boolean))
+    new Map(
+      requests
+        .map((r) => r.requestedBy)
+        .filter((u): u is { userId: string; name: string } => Boolean(u && u.userId))
+        .map((u) => [u.userId, u])
+    ).values()
   );
 
   const stats = [
@@ -234,9 +239,9 @@ export default function Materials() {
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
           >
             <option value="">All</option>
-            {uniqueRequesters.map((reqName) => (
-              <option key={reqName} value={reqName}>
-                {reqName}
+            {uniqueRequesters.map((user) => (
+              <option key={user.userId} value={user.userId}>
+                {user.name}
               </option>
             ))}
           </select>
