@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { X, Truck, Package, MapPin, Calendar, Phone, Check, ArrowRight, Download, Warehouse, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getDeliveryDetailsApi } from "../../api/projects.api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getDeliveryDetailsApi, downloadDeliveryPackingListApi, downloadDeliveryBillOfLadingApi } from "../../api/projects.api";
+import Modal from "../common/Modal";
+import SuccessModal from "../common/SuccessModal";
 
 type DeliveryDetailsModalProps = {
   open: boolean;
@@ -36,10 +38,46 @@ const mapStatusToProgressIndex = (status?: string): number => {
 };
 
 export default function DeliveryDetailsModal({ open, onClose, deliveryId }: DeliveryDetailsModalProps) {
+  const [successModalTitle, setSuccessModalTitle] = useState<string | null>(null);
+
   const { data: detailData, isLoading, isError } = useQuery({
     queryKey: ["deliveryDetails", deliveryId],
     queryFn: () => getDeliveryDetailsApi(deliveryId!),
     enabled: open && !!deliveryId,
+  });
+
+  const downloadPackingListMutation = useMutation({
+    mutationFn: () => downloadDeliveryPackingListApi(deliveryId!),
+    onSuccess: (res) => {
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `PackingList_${deliveryId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccessModalTitle("Packing list downloaded successfully");
+    },
+    onError: () => { },
+  });
+
+  const downloadBillOfLadingMutation = useMutation({
+    mutationFn: () => downloadDeliveryBillOfLadingApi(deliveryId!),
+    onSuccess: (res) => {
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `BillOfLading_${deliveryId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccessModalTitle("Bill of lading downloaded successfully");
+    },
+    onError: () => { },
   });
 
   if (!open) return null;
@@ -72,16 +110,20 @@ export default function DeliveryDetailsModal({ open, onClose, deliveryId }: Deli
   const etaText = delivery?.schedule?.deliveryTime
     ? `ETA ${delivery.schedule.deliveryTime}`
     : delivery?.schedule?.timings
-    ? delivery.schedule.timings
-    : "ETA 10:45 AM";
+      ? delivery.schedule.timings
+      : "ETA 10:45 AM";
 
   const formattedWeight = delivery?.loadWeight
     ? `${Number(delivery.loadWeight).toLocaleString()} lbs`
     : "-";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white rounded-[24px] w-full max-w-[900px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        containerClassName="max-w-[900px] p-0"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
@@ -161,9 +203,8 @@ export default function DeliveryDetailsModal({ open, onClose, deliveryId }: Deli
                         )}
                       </div>
                       <span
-                        className={`text-[12px] font-bold ${
-                          step.status === "pending" ? "text-[#3F69B0]/60" : "text-[#3F69B0]"
-                        }`}
+                        className={`text-[12px] font-bold ${step.status === "pending" ? "text-[#3F69B0]/60" : "text-[#3F69B0]"
+                          }`}
                       >
                         {step.label}
                       </span>
@@ -307,8 +348,18 @@ export default function DeliveryDetailsModal({ open, onClose, deliveryId }: Deli
                 <div>
                   <h5 className="text-sm font-bold text-gray-900 mb-3 tracking-tight">Documents</h5>
                   <div className="flex gap-3">
-                    <DocumentButton label="Packing list" />
-                    <DocumentButton label="Bill of loading" />
+                    <DocumentButton
+                      label="Packing list"
+                      onClick={() => downloadPackingListMutation.mutate()}
+                      isLoading={downloadPackingListMutation.isPending}
+                      disabled={!deliveryId || downloadPackingListMutation.isPending}
+                    />
+                    <DocumentButton
+                      label="Bill of lading"
+                      onClick={() => downloadBillOfLadingMutation.mutate()}
+                      isLoading={downloadBillOfLadingMutation.isPending}
+                      disabled={!deliveryId || downloadBillOfLadingMutation.isPending}
+                    />
                   </div>
                 </div>
               </div>
@@ -334,8 +385,14 @@ export default function DeliveryDetailsModal({ open, onClose, deliveryId }: Deli
             </>
           )}
         </div>
-      </div>
-    </div>
+      </Modal>
+
+      <SuccessModal
+        open={!!successModalTitle}
+        title={successModalTitle || ""}
+        onClose={() => setSuccessModalTitle(null)}
+      />
+    </>
   );
 }
 
@@ -371,11 +428,31 @@ function DetailItem({
   );
 }
 
-function DocumentButton({ label }: { label: string }) {
+function DocumentButton({
+  label,
+  onClick,
+  isLoading,
+  disabled,
+}: {
+  label: string;
+  onClick?: () => void;
+  isLoading?: boolean;
+  disabled?: boolean;
+}) {
   return (
-    <button className="flex items-center justify-between gap-4 px-4 py-3 border-[1.5px] border-[#3F69B0]/30 rounded-[12px] bg-[#F8FAFF] hover:bg-blue-50 transition-colors w-full">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center justify-between gap-4 px-4 py-3 border-[1.5px] border-[#3F69B0]/30 rounded-[12px] bg-[#F8FAFF] hover:bg-blue-50 transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed"
+    >
       <span className="text-sm font-bold text-gray-700">{label}</span>
-      <Download className="w-5 h-5 text-gray-700" />
+      {isLoading ? (
+        <Loader2 className="w-5 h-5 text-gray-700 animate-spin" />
+      ) : (
+        <Download className="w-5 h-5 text-gray-700" />
+      )}
     </button>
   );
 }
+
