@@ -3,8 +3,7 @@ import { Search, ChevronDown, Download, ArrowUpDown, ShieldCheck, Loader2 } from
 import { useQuery } from "@tanstack/react-query";
 import { getDispatchVerificationApi } from "../api/projects.api";
 import CustomSelect from "../components/common/CustomSelect";
-import toast from "react-hot-toast";
-import type { DispatchLoad } from "../types/projects.types";
+import toast from "react-hot-toast"
 import DispatchDetailModal from "../components/common/DispatchDetailModal";
 
 const formatStatus = (status?: string) => {
@@ -35,12 +34,10 @@ export default function DispatchVerification() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState("Latest");
   const [statusFilter, setStatusFilter] = useState("");
-  const [selectedLoad, setSelectedLoad] = useState<DispatchLoad | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [confirmLoadId, setConfirmLoadId] = useState("");
   const [isVerifyOpen, setIsVerifyOpen] = useState(false);
-  const [verifyLoadId, setVerifyLoadId] = useState("");
 
 
   useEffect(() => {
@@ -98,7 +95,7 @@ export default function DispatchVerification() {
           </button>
           <button
             onClick={() => {
-              setConfirmLoadId("");
+              setSelectedId("");
               setIsConfirmOpen(true);
             }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#8B5CF6] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-100 hover:opacity-90 transition-all"
@@ -107,7 +104,7 @@ export default function DispatchVerification() {
           </button>
           <button
             onClick={() => {
-              setVerifyLoadId("");
+              setSelectedId("");
               setIsVerifyOpen(true);
             }}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-[#6366F1] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-100 hover:opacity-90 transition-all"
@@ -270,7 +267,7 @@ export default function DispatchVerification() {
                     <td className="px-6 py-5 text-right">
                       <button
                         onClick={() => {
-                          setSelectedLoad(row);
+                          setSelectedId(row.loadId);
                           setIsModalOpen(true);
                         }}
                         className="bg-[#6366F1] text-white px-5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-sm"
@@ -289,14 +286,14 @@ export default function DispatchVerification() {
         {!isLoading && !error && loads.length > 0 && (
           <div className="px-4 sm:px-8 py-6 bg-gray-50/30 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3 order-2 sm:order-1">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Showing</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Show</p>
               <select
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
                   setPage(1);
                 }}
-                className="bg-white border border-gray-100 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 shadow-sm outline-none cursor-pointer"
+                className="h-9 px-3 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:border-blue-500 transition-all"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -320,8 +317,8 @@ export default function DispatchVerification() {
                       key={pNum}
                       onClick={() => setPage(pNum)}
                       className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${page === pNum
-                          ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
-                          : "text-gray-400 hover:bg-white hover:text-gray-900"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                        : "text-gray-400 hover:bg-white hover:text-gray-900"
                         }`}
                     >
                       {pNum}
@@ -344,7 +341,7 @@ export default function DispatchVerification() {
       <DispatchDetailModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        load={selectedLoad}
+        loadId={selectedId}
       />
 
       {/* Confirm Dispatch Dialog */}
@@ -368,8 +365,8 @@ export default function DispatchVerification() {
               <input
                 id="confirm-load-id-input"
                 type="text"
-                value={confirmLoadId}
-                onChange={(e) => setConfirmLoadId(e.target.value)}
+                value={selectedId || ""}
+                onChange={(e) => setSelectedId(e.target.value)}
                 placeholder="LOAD-001"
                 className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500 transition-all"
               />
@@ -384,20 +381,12 @@ export default function DispatchVerification() {
               </button>
               <button
                 onClick={() => {
-                  if (!confirmLoadId.trim()) {
+                  if (!selectedId?.trim()) {
                     toast.error("Please enter a Load ID");
                     return;
                   }
-                  const matched = loads.find(
-                    (l) => l.loadId.toLowerCase() === confirmLoadId.trim().toLowerCase()
-                  );
-                  if (matched) {
-                    setSelectedLoad(matched);
-                    setIsModalOpen(true);
-                    setIsConfirmOpen(false);
-                  } else {
-                    toast.error(`Load ID "${confirmLoadId}" not found`);
-                  }
+                  setIsModalOpen(true);
+                  setIsConfirmOpen(false);
                 }}
                 className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-750 hover:to-indigo-750 text-white rounded-xl text-sm font-bold shadow-md hover:opacity-95 transition-all text-center"
               >
@@ -429,8 +418,8 @@ export default function DispatchVerification() {
               <input
                 id="verify-load-id-input"
                 type="text"
-                value={verifyLoadId}
-                onChange={(e) => setVerifyLoadId(e.target.value)}
+                value={selectedId || ""}
+                onChange={(e) => setSelectedId(e.target.value)}
                 placeholder="LOAD-001"
                 className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500 transition-all"
               />
@@ -445,20 +434,12 @@ export default function DispatchVerification() {
               </button>
               <button
                 onClick={() => {
-                  if (!verifyLoadId.trim()) {
+                  if (!selectedId?.trim()) {
                     toast.error("Please enter a Load ID");
                     return;
                   }
-                  const matched = loads.find(
-                    (l) => l.loadId.toLowerCase() === verifyLoadId.trim().toLowerCase()
-                  );
-                  if (matched) {
-                    setSelectedLoad(matched);
-                    setIsModalOpen(true);
-                    setIsVerifyOpen(false);
-                  } else {
-                    toast.error(`Load ID "${verifyLoadId}" not found`);
-                  }
+                  setIsModalOpen(true);
+                  setIsVerifyOpen(false);
                 }}
                 className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-750 hover:to-indigo-750 text-white rounded-xl text-sm font-bold shadow-md hover:opacity-95 transition-all text-center"
               >
@@ -471,5 +452,3 @@ export default function DispatchVerification() {
     </div>
   );
 }
-
-
