@@ -43,7 +43,7 @@ export default function CustomSelect({
 
   const selectedLabel = options.find((o) => o.value === value)?.label || title;
 
-    const filteredOptions = useMemo(() => {
+  const filteredOptions = useMemo(() => {
     if (!searchable || !searchQuery) return options;
     return options.filter((opt) =>
       opt.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -53,6 +53,7 @@ export default function CustomSelect({
   return (
     <div ref={ref} className="relative" style={{ width }}>
       <button
+        type="button"
         disabled={disabled || loading}
         onClick={() => setOpen(!open)}
         className={`
@@ -90,12 +91,12 @@ export default function CustomSelect({
         <div
           className={`
             absolute w-full bg-white rounded-[8px] border shadow-lg
-            overflow-hidden z-50
+            max-h-60 overflow-y-auto z-50
             ${upperSide ? "bottom-full mb-2" : "top-full mt-2"}
           `}
         >
-                    {searchable && (
-            <div className="px-4 py-2 border-b">
+          {searchable && (
+            <div className="sticky top-0 bg-white px-4 py-2 border-b z-10">
               <input
                 type="text"
                 value={searchQuery}
