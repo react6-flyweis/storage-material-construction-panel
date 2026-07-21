@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "../../lib/utils";
 
 export interface ModalProps {
   isOpen?: boolean;
@@ -58,7 +59,7 @@ export const Modal: React.FC<ModalProps> = ({
     }
   };
 
-  const combinedContainerClass = `${DEFAULT_CONTAINER_BASE} ${containerClassName}`.trim();
+  const combinedContainerClass = cn(DEFAULT_CONTAINER_BASE, containerClassName, containerProps.className);
 
   const modalContent = (
     <div className={DEFAULT_OVERLAY} onClick={handleOverlayClick}>
