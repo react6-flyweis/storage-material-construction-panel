@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosError, InternalAxiosRequestConfig } from "axios";
+import * as Sentry from "@sentry/react";
 import { useAuthStore } from "../store/authStore";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -91,6 +92,18 @@ axiosInstance.interceptors.response.use(
         isRefreshing = false;
       }
     }
+    // Log API error to Sentry (skipping 401 unauthenticated errors if desired or capture all non-401/all API errors)
+    if (error.response?.status !== 401) {
+      Sentry.captureException(error, {
+        extra: {
+          url: error.config?.url,
+          method: error.config?.method,
+          status: error.response?.status,
+          responseData: error.response?.data,
+        },
+      });
+    }
+
     return Promise.reject(error);
   }
 );
