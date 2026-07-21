@@ -22,6 +22,7 @@ import BundleScan from "../app/BundleScan";
 import LabelPrinting from "../app/LabelPrinting";
 import PackingLists from "../app/PackingLists";
 import DispatchVerification from "../app/DispatchVerification";
+import { NotFound } from "../pages/NotFound";
 
 const AppRoutes = () => {
   return (
@@ -60,6 +61,8 @@ const AppRoutes = () => {
           <Route path="/delivery-tracking/dispatch-verification" element={<DispatchVerification />} />
         </Route>
       </Route>
+
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
