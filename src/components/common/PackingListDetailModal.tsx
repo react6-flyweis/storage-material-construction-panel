@@ -1,39 +1,139 @@
+import { useState } from "react";
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getLabelsApi } from "../../api/projects.api";
-import toast from "react-hot-toast";
-import type { PackingListItem } from "../../types/projects.types";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getPackingListDetailsApi,
+  downloadPackingListPdfApi,
+  exportPackingListsApi,
+  markPackingListReadyApi,
+  markPackingListLoadingApi,
+  markPackingListDispatchApi,
+} from "../../api/projects.api";
+import Modal from "./Modal";
+import SuccessModal from "./SuccessModal";
 
 interface PackingListDetailModalProps {
   open: boolean;
   onClose: () => void;
-  packingList: PackingListItem | null;
+  packingListId: string | null;
 }
 
-const formatWeight = (weight?: number) => {
+const formatWeight = (weight?: number | null) => {
   if (weight === undefined || weight === null) return "-";
   return `${weight.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LBS`;
 };
 
-export default function PackingListDetailModal({ open, onClose, packingList }: PackingListDetailModalProps) {
-  const { data: labelsData, isLoading: detailBundlesLoading } = useQuery({
-    queryKey: ["detailLabels", packingList?.packingListId],
-    queryFn: () => getLabelsApi({ limit: 100 }),
-    enabled: open && !!packingList,
+const formatStatus = (status?: string) => {
+  if (!status) return "-";
+  return status
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+export default function PackingListDetailModal({ open, onClose, packingListId }: PackingListDetailModalProps) {
+  const queryClient = useQueryClient();
+  const [successModalTitle, setSuccessModalTitle] = useState<string | null>(null);
+
+  const { data: detailData, isLoading: isDetailLoading, error: detailError } = useQuery({
+    queryKey: ["packingListDetail", packingListId],
+    queryFn: () => getPackingListDetailsApi(packingListId!),
+    enabled: open && !!packingListId,
   });
 
-  if (!open || !packingList) return null;
+  const downloadPdfMutation = useMutation({
+    mutationFn: () => downloadPackingListPdfApi(packingListId!),
+    onSuccess: (res) => {
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `PackingList_${packingListId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccessModalTitle("PDF downloaded successfully");
+    },
+    onError: () => { },
+  });
 
-  const allLabels = labelsData?.data?.data?.bundles || [];
-  const filteredBundles = allLabels.filter(
-    (b) =>
-      b.packingListId === packingList.packingListNo ||
-      b.packingListId === packingList.packingListId
-  );
+  const exportExcelMutation = useMutation({
+    mutationFn: () => exportPackingListsApi(),
+    onSuccess: (res) => {
+      const blob = new Blob([res.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "PackingLists_Export.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccessModalTitle("Packing lists exported successfully");
+    },
+    onError: () => { },
+  });
+
+  const markReadyMutation = useMutation({
+    mutationFn: () => markPackingListReadyApi(packingListId!),
+    onSuccess: (res) => {
+      setSuccessModalTitle(res.data?.message || "Packing list marked as Ready");
+      queryClient.invalidateQueries({ queryKey: ["packingListDetail", packingListId] });
+      queryClient.invalidateQueries({ queryKey: ["packingLists"] });
+    },
+    onError: () => { },
+  });
+
+  const markLoadingMutation = useMutation({
+    mutationFn: () => markPackingListLoadingApi(packingListId!),
+    onSuccess: (res) => {
+      setSuccessModalTitle(res.data?.message || "Packing list marked as Loading");
+      queryClient.invalidateQueries({ queryKey: ["packingListDetail", packingListId] });
+      queryClient.invalidateQueries({ queryKey: ["packingLists"] });
+    },
+    onError: () => { },
+  });
+
+  const markDispatchMutation = useMutation({
+    mutationFn: () => markPackingListDispatchApi(packingListId!),
+    onSuccess: (res) => {
+      setSuccessModalTitle(res.data?.message || "Packing list marked as Dispatched");
+      queryClient.invalidateQueries({ queryKey: ["packingListDetail", packingListId] });
+      queryClient.invalidateQueries({ queryKey: ["packingLists"] });
+    },
+    onError: () => { },
+  });
+
+  const show = open && Boolean(packingListId);
+
+  const detail = detailData?.data?.data?.packingList;
+  const currentPackingListNo = detail?.packingListNo || "-";
+  const currentTruck = detail?.truck || "-";
+  const currentDestination = detail?.destination || "-";
+  const currentTotalBundles = detail?.totalBundles ?? 0;
+  const currentTotalWeight = detail?.totalWeight;
+  const currentProjectName = detail?.project?.projectName || "-";
+  const currentJobId = detail?.project?.jobId || "-";
+  const bundles = detail?.bundles || [];
+
+  // Calculate total items across all bundles
+  const totalItemsCount = bundles.reduce((acc, bundle) => {
+    if (bundle.items && Array.isArray(bundle.items)) {
+      return acc + bundle.items.reduce((itemAcc, item) => itemAcc + (item.qty || 0), 0);
+    }
+    return acc;
+  }, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto animate-fade-in">
-      <div className="bg-white rounded-xl w-full shadow-2xl p-6 flex flex-col max-h-[85vh] overflow-y-auto relative max-w-5xl">
+    <>
+      <Modal
+        open={show}
+        onClose={onClose}
+        containerClassName="p-6 max-h-[85vh] max-w-5xl"
+      >
         {/* Close Icon */}
         <button
           onClick={onClose}
@@ -54,47 +154,80 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
             </button>
             <div className="flex flex-wrap items-center gap-2 pr-8">
               <button
-                onClick={() => toast.success("Downloading PDF...")}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
+                disabled={downloadPdfMutation.isPending || !packingListId}
+                onClick={() => downloadPdfMutation.mutate()}
+                className="bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center gap-1.5"
               >
+                {downloadPdfMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
                 Download PDF
               </button>
               <button
-                onClick={() => toast.success("Printing Packing List...")}
+                onClick={() => setSuccessModalTitle("Printing Packing List...")}
                 className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
               >
                 Print Packing List
               </button>
               <button
-                onClick={() => toast.success("Exporting to Excel...")}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
+                disabled={exportExcelMutation.isPending}
+                onClick={() => exportExcelMutation.mutate()}
+                className="bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center gap-1.5"
               >
+                {exportExcelMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
                 Export Excel
               </button>
-              <button
-                onClick={() => toast.success("Printing Selected Bundles...")}
+              {/* <button
+                onClick={() => setSuccessModalTitle("Printing Selected Bundles...")}
                 className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
               >
                 Print Selected
-              </button>
-              <button
-                onClick={() => toast.success("Packing list marked as Ready")}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
-              >
-                Mark Ready
-              </button>
-              <button
-                onClick={() => toast.success("Packing list marked as Loading")}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
-              >
-                Mark Loading
-              </button>
-              <button
-                onClick={() => toast.success("Packing list marked as Dispatched")}
-                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm"
-              >
-                Mark Dispatch
-              </button>
+              </button> */}
+              {/* Dynamic Status Transition Action Button */}
+              {(() => {
+                const currentStatus = (detail?.status || "").toLowerCase();
+
+                // Order: draft / pending / initial -> ready -> loading -> dispatched
+                if (currentStatus === "dispatched") {
+                  return null; // Fully dispatched; no further step
+                }
+
+                if (currentStatus === "loading") {
+                  return (
+                    <button
+                      disabled={markDispatchMutation.isPending || !packingListId}
+                      onClick={() => markDispatchMutation.mutate()}
+                      className="bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                      {markDispatchMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Mark Dispatch
+                    </button>
+                  );
+                }
+
+                if (currentStatus === "ready") {
+                  return (
+                    <button
+                      disabled={markLoadingMutation.isPending || !packingListId}
+                      onClick={() => markLoadingMutation.mutate()}
+                      className="bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                      {markLoadingMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Mark Loading
+                    </button>
+                  );
+                }
+
+                // Default / draft / pending status -> Next step is Mark Ready
+                return (
+                  <button
+                    disabled={markReadyMutation.isPending || !packingListId}
+                    onClick={() => markReadyMutation.mutate()}
+                    className="bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center gap-1.5"
+                  >
+                    {markReadyMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                    Mark Ready
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -106,31 +239,51 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-1 border-b border-gray-50">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Packing List ID</span>
-                  <span className="text-xs font-bold text-gray-900">{packingList.packingListNo || "-"}</span>
+                  {isDetailLoading ? (
+                    <div className="h-4 w-24 bg-gray-100 animate-pulse rounded" />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900">{currentPackingListNo}</span>
+                  )}
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-50">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Load ID</span>
-                  <span className="text-xs font-bold text-gray-900">{`LOAD-${packingList.packingListNo.split("-")[1] || "001"}`}</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Job ID</span>
+                  {isDetailLoading ? (
+                    <div className="h-4 w-20 bg-gray-100 animate-pulse rounded" />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900">{currentJobId || "-"}</span>
+                  )}
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-50">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Project</span>
-                  <span className="text-xs font-bold text-gray-900">{packingList.project?.projectName || "-"}</span>
+                  {isDetailLoading ? (
+                    <div className="h-4 w-32 bg-gray-100 animate-pulse rounded" />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900">{currentProjectName}</span>
+                  )}
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-50">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Truck</span>
-                  <span className="text-xs font-bold text-gray-900">{packingList.truck || "-"}</span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-gray-50">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Driver</span>
-                  <span className="text-xs font-bold text-gray-900">{"John Miler"}</span>
+                  {isDetailLoading ? (
+                    <div className="h-4 w-28 bg-gray-100 animate-pulse rounded" />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900">{currentTruck}</span>
+                  )}
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-50">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Destination</span>
-                  <span className="text-xs font-bold text-gray-900">{packingList.destination || "-"}</span>
+                  {isDetailLoading ? (
+                    <div className="h-4 w-24 bg-gray-100 animate-pulse rounded" />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900">{currentDestination}</span>
+                  )}
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-50">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Dispatch Date</span>
-                  <span className="text-xs font-bold text-gray-900">{"April 5"}</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</span>
+                  {isDetailLoading ? (
+                    <div className="h-4 w-20 bg-gray-100 animate-pulse rounded" />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900 capitalize">{formatStatus(detail?.status)}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -142,15 +295,27 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-1 border-b border-gray-50">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Bundles</span>
-                    <span className="text-xs font-bold text-gray-900">{packingList.totalBundles ?? 0}</span>
+                    {isDetailLoading ? (
+                      <div className="h-4 w-12 bg-gray-100 animate-pulse rounded" />
+                    ) : (
+                      <span className="text-xs font-bold text-gray-900">{currentTotalBundles}</span>
+                    )}
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-gray-50">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Items</span>
-                    <span className="text-xs font-bold text-gray-900">{150}</span>
+                    {isDetailLoading ? (
+                      <div className="h-4 w-12 bg-gray-100 animate-pulse rounded" />
+                    ) : (
+                      <span className="text-xs font-bold text-gray-900">{totalItemsCount}</span>
+                    )}
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-gray-50">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total weight</span>
-                    <span className="text-xs font-bold text-gray-900">{formatWeight(packingList.totalWeight)}</span>
+                    {isDetailLoading ? (
+                      <div className="h-4 w-24 bg-gray-100 animate-pulse rounded" />
+                    ) : (
+                      <span className="text-xs font-bold text-gray-900">{formatWeight(currentTotalWeight)}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -191,7 +356,7 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
                     <tr className="bg-[#1C1F25] text-white">
                       <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider w-16">#</th>
                       <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Bundle ID</th>
-                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Part Number</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Part Code / Description</th>
                       <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Quantity</th>
                       <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Length</th>
                       <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider">Weight</th>
@@ -199,59 +364,59 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
-                    {detailBundlesLoading ? (
+                    {isDetailLoading ? (
+                      Array.from({ length: 4 }).map((_, idx) => (
+                        <tr key={idx} className="animate-pulse">
+                          <td className="px-4 py-4"><div className="h-4 w-4 bg-gray-100 rounded" /></td>
+                          <td className="px-4 py-4"><div className="h-4 w-16 bg-gray-100 rounded" /></td>
+                          <td className="px-4 py-4"><div className="h-4 w-32 bg-gray-100 rounded" /></td>
+                          <td className="px-4 py-4"><div className="h-4 w-8 bg-gray-100 rounded" /></td>
+                          <td className="px-4 py-4"><div className="h-4 w-16 bg-gray-100 rounded" /></td>
+                          <td className="px-4 py-4"><div className="h-4 w-20 bg-gray-100 rounded" /></td>
+                          <td className="px-4 py-4"><div className="h-4 w-16 bg-gray-100 rounded" /></td>
+                        </tr>
+                      ))
+                    ) : detailError ? (
                       <tr>
                         <td colSpan={7} className="py-10 text-center">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                            <p className="text-xs font-bold text-gray-500">Loading bundle details...</p>
-                          </div>
+                          <p className="text-xs font-bold text-red-500">Failed to load detail data.</p>
                         </td>
                       </tr>
-                    ) : filteredBundles.length === 0 ? (
-                      // Default mockup fallbacks if no actual bundles returned by the api
-                      [
-                        { id: "BND-001", parts: "STL-B12", qty: 20, len: "20ft", wt: 3600, status: "Verified" },
-                        { id: "BND-002", parts: "STL-B12", qty: 30, len: "30ft", wt: 2400, status: "Verified" },
-                        { id: "BND-003", parts: "STL-B12", qty: 100, len: "20ft", wt: 4500, status: "Verified" },
-                        { id: "BND-004", parts: "STL-B12", qty: 20, len: "15ft", wt: 2700, status: "Pending" }
-                      ].map((row, idx) => (
-                        <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-4 text-sm font-bold text-gray-400">{idx + 1}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{row.id}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{row.parts}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{row.qty}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-500">{row.len}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{row.wt.toLocaleString()} IBS</td>
-                          <td className="px-4 py-4 text-sm font-semibold text-gray-500">
-                            <span className={row.status === "Pending" ? "text-gray-400" : "text-gray-700 font-bold"}>
-                              {row.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
+                    ) : bundles.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-10 text-center">
+                          <p className="text-xs font-bold text-gray-400">No bundles in this packing list.</p>
+                        </td>
+                      </tr>
                     ) : (
-                      filteredBundles.map((bundle, idx) => (
-                        <tr key={bundle.bundleId} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-4 text-sm font-bold text-gray-400">{idx + 1}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{bundle.bundleNo || bundle.bundleId}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{bundle.parts || "-"}</td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">
-                            {bundle.parts?.includes("x") || bundle.parts?.includes("×") 
-                              ? bundle.parts.split(/[x×]/)[1]?.trim() 
-                              : idx === 0 ? 20 : idx === 1 ? 30 : idx === 2 ? 100 : 20}
-                          </td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-500">
-                            {bundle.maxLengthFeet ? `${Number(bundle.maxLengthFeet).toFixed(2)}ft` : "-"}
-                          </td>
-                          <td className="px-4 py-4 text-sm font-bold text-gray-900">{formatWeight(bundle.totalWeight)}</td>
-                          <td className="px-4 py-4 text-sm">
-                            <span className={bundle.status === "pending" ? "text-gray-400" : "text-gray-700 font-bold"}>
-                              {bundle.status === "pending" ? "Pending" : "Verified"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
+                      bundles.map((bundle, idx) => {
+                        const firstItem = bundle.items?.[0];
+                        const partsText = bundle.items && bundle.items.length > 0
+                          ? bundle.items.map((i) => i.partCode || i.description).filter(Boolean).join(", ")
+                          : "-";
+                        const totalQty = bundle.items && bundle.items.length > 0
+                          ? bundle.items.reduce((sum, item) => sum + (item.qty || 0), 0)
+                          : "-";
+                        const lengthFeet = firstItem?.lengthFeet;
+
+                        return (
+                          <tr key={bundle._id || idx} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-4 py-4 text-sm font-bold text-gray-400">{idx + 1}</td>
+                            <td className="px-4 py-4 text-sm font-bold text-gray-900">{bundle.bundleNo || bundle._id}</td>
+                            <td className="px-4 py-4 text-sm font-bold text-gray-900">{partsText}</td>
+                            <td className="px-4 py-4 text-sm font-bold text-gray-900">{totalQty}</td>
+                            <td className="px-4 py-4 text-sm font-bold text-gray-500">
+                              {lengthFeet !== undefined && lengthFeet !== null ? `${Number(lengthFeet).toFixed(2)} ft` : "-"}
+                            </td>
+                            <td className="px-4 py-4 text-sm font-bold text-gray-900">{formatWeight(bundle.totalWeight)}</td>
+                            <td className="px-4 py-4 text-sm">
+                              <span className="text-gray-700 font-bold capitalize">
+                                {formatStatus(bundle.status)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -259,7 +424,12 @@ export default function PackingListDetailModal({ open, onClose, packingList }: P
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Modal>
+      <SuccessModal
+        open={Boolean(successModalTitle)}
+        title={successModalTitle || ""}
+        onClose={() => setSuccessModalTitle(null)}
+      />
+    </>
   );
 }
