@@ -32,6 +32,12 @@ export default function DeliveryTracking() {
   const [addDeliveryOpen, setAddDeliveryOpen] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<{ id: string; number: string } | null>(null);
+  const [selectedContactDelivery, setSelectedContactDelivery] = useState<{
+    id: string;
+    number: string;
+    projectName?: string;
+  } | null>(null);
+
 
   const queryClient = useQueryClient();
 
@@ -527,7 +533,14 @@ export default function DeliveryTracking() {
                 {/* Links Footer */}
                 <div className="flex items-center gap-3 border-t border-gray-50 pt-6">
                   <button
-                    onClick={() => setUpdateContactOpen(true)}
+                    onClick={() => {
+                      setSelectedContactDelivery({
+                        id: item.deliveryId,
+                        number: item.id,
+                        projectName: item.subtitle,
+                      });
+                      setUpdateContactOpen(true);
+                    }}
                     className="flex items-center gap-2 text-[9px] font-bold text-[#8B5CF6] border border-purple-50 rounded-lg px-4 py-2 uppercase tracking-wider hover:bg-purple-50 transition-all"
                   >
                     <User className="w-3.5 h-3.5" />
@@ -541,7 +554,13 @@ export default function DeliveryTracking() {
       </div>
       <UpdateSiteContactModal
         open={updateContactOpen}
-        onClose={() => setUpdateContactOpen(false)}
+        onClose={() => {
+          setUpdateContactOpen(false);
+          setSelectedContactDelivery(null);
+        }}
+        deliveryId={selectedContactDelivery?.id}
+        deliveryNumber={selectedContactDelivery?.number}
+        projectName={selectedContactDelivery?.projectName}
       />
       <ScanQRCodeModal
         open={scanOpen}
