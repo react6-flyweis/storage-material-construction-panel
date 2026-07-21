@@ -3,7 +3,6 @@ import { Search, ChevronDown, Download, ListChecks, Loader2 } from "lucide-react
 import { useQuery } from "@tanstack/react-query";
 import { getPackingListsApi } from "../api/projects.api";
 import CustomSelect from "../components/common/CustomSelect";
-import type { PackingListItem } from "../types/projects.types";
 import PackingListDetailModal from "../components/common/PackingListDetailModal";
 
 const formatStatus = (status?: string) => {
@@ -26,7 +25,7 @@ export default function PackingLists() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState("Latest");
   const [statusFilter, setStatusFilter] = useState("");
-  const [selectedPackingList, setSelectedPackingList] = useState<PackingListItem | null>(null);
+  const [selectedPackingListId, setSelectedPackingListId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -219,7 +218,7 @@ export default function PackingLists() {
                     <td className="px-6 py-5 text-right">
                       <button
                         onClick={() => {
-                          setSelectedPackingList(row);
+                          setSelectedPackingListId(row.packingListId);
                           setIsModalOpen(true);
                         }}
                         className="bg-[#1D51A4] text-white px-5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-800 transition-all shadow-sm"
@@ -290,9 +289,9 @@ export default function PackingLists() {
         open={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          setSelectedPackingList(null);
+          setSelectedPackingListId(null);
         }}
-        packingList={selectedPackingList}
+        packingListId={selectedPackingListId}
       />
     </div>
   );
