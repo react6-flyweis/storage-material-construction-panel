@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import UploadIcon from "../assets/uploadicon copy.svg";
 import CloseIcon from "../assets/closeicon.svg";
+import Modal from "./common/Modal";
 
 const allowedTypes = [
   "text/csv",
@@ -23,8 +24,6 @@ export default function UploadWorkLogFileModal({
   onClose,
   onSubmit,
 }: UploadWorkLogFileModalProps) {
-  if (!open) return null;
-
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,15 +44,15 @@ export default function UploadWorkLogFileModal({
     setFile(selectedFile);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (e.dataTransfer.files?.[0]) {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
   };
@@ -69,25 +68,22 @@ export default function UploadWorkLogFileModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
+    <Modal
+      open={open}
+      onClose={onClose}
+      containerClassName="max-w-[486px] overflow-hidden"
     >
-      <div
-        className="w-[96%] max-w-[486px] bg-white rounded-xl shadow-lg overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="lg:px-6 px-3 py-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#111827]">
-            Upload Drawings & Images
-          </h2>
-          <img
-            src={CloseIcon}
-            alt="close"
-            className="w-3 cursor-pointer"
-            onClick={onClose}
-          />
-        </div>
+      <div className="lg:px-6 px-3 py-4 border-b flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-[#111827]">
+          Upload Drawings & Images
+        </h2>
+        <img
+          src={CloseIcon}
+          alt="close"
+          className="w-3 cursor-pointer"
+          onClick={onClose}
+        />
+      </div>
 
         <div className="p-6 space-y-3">
           <div
@@ -126,7 +122,7 @@ export default function UploadWorkLogFileModal({
               type="file"
               accept=".csv,.xls,.xlsx"
               className="hidden"
-              onChange={handleChange}
+              onChange={handleFileChange}
             />
           </div>
 
@@ -154,8 +150,7 @@ export default function UploadWorkLogFileModal({
           >
             Submit
           </button>
-        </div>
-      </div>
-    </div>
+          </div>
+    </Modal>
   );
 }

@@ -7,6 +7,7 @@ import CustomSelect from "./common/CustomSelect";
 import ProjectSelector from "./common/ProjectSelector";
 import UploadCameraIcon from "../assets/uploadcameraicon.svg";
 import { createWorkLogApi, getTasksApi, getProjectsApi } from "../api/projects.api";
+import Modal from "./common/Modal";
 
 type DailyLogModalProps = {
   open: boolean;
@@ -155,17 +156,12 @@ export default function DailyLogModel({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={handleCancel}
+    <Modal
+      open={open}
+      onClose={handleCancel}
+      containerClassName="max-h-[98vh] max-w-[550px] overflow-auto scroll-hide"
     >
-      <div
-        className="w-[96%] max-h-[98vh] max-w-[550px] bg-white rounded-xl shadow-lg overflow-auto scroll-hide"
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="lg:px-6 px-3 py-4 border-b">
           <h2 className="text-lg font-semibold text-[#111827]">
             Daily Work Log
@@ -331,7 +327,6 @@ export default function DailyLogModel({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

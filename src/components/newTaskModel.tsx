@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import CustomSelect from "./common/CustomSelect";
 import ProjectSelector from "./common/ProjectSelector";
+import Modal from "./common/Modal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTaskApi } from "../api/projects.api";
 
@@ -117,14 +118,11 @@ export default function NewTaskModel({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={handleCancel}
+    <Modal
+      open={open}
+      onClose={handleCancel}
+      containerClassName="max-h-[98vh] max-w-[550px] overflow-auto scroll-hide"
     >
-      <div
-        className="w-[96%] max-h-[98vh] max-w-[550px] bg-white rounded-xl shadow-lg overflow-auto scroll-hide"
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="lg:px-6 px-3 py-4 border-b">
           <h2 className="text-lg font-semibold text-[#111827]">New Task</h2>
           {serverError && (
@@ -283,7 +281,6 @@ export default function NewTaskModel({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -4,6 +4,7 @@ import LinkIcon from "../assets/linkicon.svg";
 import PendingImg from "../assets/drawingpreview.png";
 import ApprovedImg from "../assets/approvedimg.png";
 import RevisionImg from "../assets/revisionimg.png";
+import Modal from "./common/Modal";
 
 type DrawingPreviewModalProps = {
   open: boolean;
@@ -22,17 +23,12 @@ export default function DrawingPreviewModal({
   onClose,
   fileId,
 }: DrawingPreviewModalProps) {
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-      onClick={onClose}
+    <Modal
+      open={open}
+      onClose={onClose}
+      containerClassName="max-w-[1100px] max-h-[95vh] rounded-2xl overflow-auto scroll-hide"
     >
-      <div
-        className="w-[96%] max-w-[1100px] max-h-[95vh] bg-white rounded-2xl overflow-auto scroll-hide"
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="lg:px-6 px-3 py-4 border-b flex md:items-center items-start justify-between gap-2">
           <div className="flex md:flex-row flex-col justify-start gap-4 md:items-center">
             <div className="space-y-1">
@@ -121,7 +117,6 @@ export default function DrawingPreviewModal({
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
