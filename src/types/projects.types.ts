@@ -345,6 +345,60 @@ export interface PackingListStats {
   loadsDispatchedToday: number;
 }
 
+export interface PackingListBundleItem {
+  vendorQuoteLineId?: string;
+  partCode?: string;
+  description?: string;
+  category?: string;
+  color?: string;
+  qty?: number;
+  lengthFeet?: number | null;
+  widthFeet?: number | null;
+  heightFeet?: number | null;
+  weight?: number | null;
+  unitWeight?: number | null;
+  totalWeight?: number | null;
+  weightBasis?: string;
+  weightSource?: string;
+  markIds?: string[];
+  sourceLineSnapshot?: Record<string, unknown>;
+  _id?: string;
+}
+
+export interface PackingListBundle {
+  _id: string;
+  bundleNo?: string;
+  bundleType?: string;
+  items?: PackingListBundleItem[];
+  totalWeight?: number;
+  status?: string;
+}
+
+export interface PackingListDetail {
+  packingListId: string;
+  packingListNo: string;
+  truck?: string;
+  totalBundles?: number;
+  totalWeight?: number;
+  maxLengthFeet?: number;
+  destination?: string;
+  status?: string;
+  bundles?: PackingListBundle[];
+  project?: {
+    leadId?: string;
+    projectName?: string;
+    jobId?: string;
+  };
+}
+
+export interface PackingListDetailApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    packingList: PackingListDetail;
+  };
+}
+
 export interface PackingListResponseData {
   packingLists: PackingListItem[];
   total: number;
@@ -400,6 +454,35 @@ export interface DispatchVerificationApiResponse {
   success: boolean;
   message: string;
   data: DispatchVerificationResponseData;
+}
+
+export interface DispatchVerificationBundle {
+  bundleId: string;
+  bundleNo: string;
+  totalWeight: number;
+  status: string;
+  verified: boolean;
+}
+
+export interface DispatchVerificationDetail {
+  loadId: string;
+  packingListNo: string;
+  truck: string;
+  destination: string;
+  status: string;
+  plannedWeight: number;
+  weightVerified: boolean;
+  loadingVerified: boolean;
+  bundles: DispatchVerificationBundle[];
+  project: DispatchLoadProject;
+}
+
+export interface DispatchVerificationDetailApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    load: DispatchVerificationDetail;
+  };
 }
 
 export interface DispatchVerificationQueryParams {
