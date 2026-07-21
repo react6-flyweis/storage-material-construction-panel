@@ -3,7 +3,7 @@ import type { ErrorInfo, ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import { useRouteError, isRouteErrorResponse } from "react-router-dom";
 import { AlertCircle, RefreshCw, Home, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
-import Button from "../components/common/Button";
+import { Button } from "@/components/ui/button";
 
 interface ErrorViewProps {
   title?: string;
@@ -76,7 +76,7 @@ export function ErrorView({
           <Button
             onClick={onReload}
             title="Reload Page"
-            // variant="default"
+            variant="default"
             className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-5 cursor-pointer flex items-center justify-center gap-2"
           >
             <RefreshCw className="size-4" />
@@ -87,7 +87,7 @@ export function ErrorView({
             <Button
               title="Dashboard"
               onClick={onGoHome}
-              // variant="outline"
+              variant="outline"
               className="flex-1 border-border text-foreground hover:bg-accent font-medium py-5 cursor-pointer flex items-center justify-center gap-2"
             >
               <Home className="size-4" />
