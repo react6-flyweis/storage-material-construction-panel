@@ -19,11 +19,13 @@ export type StatItem = {
 export type StatsOverviewProps = {
   stats: StatItem[];
   gridCols?: string;
+  isLoading?: boolean;
 };
 
 export default function StatsOverview({
   stats,
   gridCols = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6",
+  isLoading = false,
 }: StatsOverviewProps) {
   return (
     <div className={`grid ${gridCols} gap-4`}>
@@ -44,7 +46,11 @@ export default function StatsOverview({
           </div>
           
           <div>
-            <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+            {isLoading ? (
+              <div className="h-7 w-16 bg-gray-200 animate-pulse rounded my-1" />
+            ) : (
+              <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+            )}
             <p className="text-sm text-gray-500 font-medium">{item.title}</p>
           </div>
 

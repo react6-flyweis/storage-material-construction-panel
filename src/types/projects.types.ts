@@ -621,3 +621,66 @@ export interface BundleDetailsApiResponse {
     bundle: BundleDetailInfo;
   };
 }
+
+export interface DashboardProjectStats {
+  total: number;
+  onTrack: number;
+  delayed: number;
+  completed: number;
+  completionRate: number;
+  upcomingDeadlines: number;
+}
+
+export interface DashboardDeliveryOverview {
+  delivered: number;
+  inTransit: number;
+  outForDelivery: number;
+  delayed: number;
+  total: number;
+}
+
+export interface DashboardTaskOverview {
+  total: number;
+  todo: number;
+  inProgress: number;
+  done: number;
+  overdue: number;
+}
+
+export interface DashboardUpcomingDeadline {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  location: string;
+  endDate: string;
+  daysLeft: number;
+}
+
+export interface DashboardRecentDeliveryProject {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  location: string;
+}
+
+export interface DashboardRecentDelivery {
+  deliveryId: string;
+  status: string;
+  deliveryDate: string;
+  project: DashboardRecentDeliveryProject;
+}
+
+export interface DashboardResponseData {
+  projectStats: DashboardProjectStats;
+  deliveryOverview: DashboardDeliveryOverview;
+  taskOverview: DashboardTaskOverview;
+  upcomingDeadlines: DashboardUpcomingDeadline[];
+  recentDeliveries: DashboardRecentDelivery[];
+}
+
+export interface DashboardApiResponse {
+  success: boolean;
+  message: string;
+  data: DashboardResponseData;
+}
+

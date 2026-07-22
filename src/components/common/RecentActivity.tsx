@@ -18,24 +18,28 @@ export default function RecentActivity({ activities }: { activities: Activity[] 
       </div>
 
       <div className="space-y-4">
-        {activities.map((activity) => (
-          <div key={activity.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-50 hover:bg-gray-50 transition-colors">
-            <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: activity.iconBg }}
-            >
-              {activity.icon}
+        {activities.length === 0 ? (
+          <p className="text-sm font-medium text-gray-400 py-6 text-center">No recent activity available</p>
+        ) : (
+          activities.map((activity) => (
+            <div key={activity.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-50 hover:bg-gray-50 transition-colors">
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: activity.iconBg }}
+              >
+                {activity.icon}
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 line-clamp-2 sm:line-clamp-1">{activity.description}</p>
+              </div>
+              
+              <div className="text-right">
+                <p className="text-xs text-gray-400 font-medium whitespace-nowrap">{activity.timestamp}</p>
+              </div>
             </div>
-            
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-900 line-clamp-2 sm:line-clamp-1">{activity.description}</p>
-            </div>
-            
-            <div className="text-right">
-              <p className="text-xs text-gray-400 font-medium whitespace-nowrap">{activity.timestamp}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

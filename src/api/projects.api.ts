@@ -1,5 +1,5 @@
 import { axiosInstance } from "./axiosInstance";
-import type { ProjectsApiResponse, ProjectDetailsApiResponse, CalendarApiResponse, DrawingsApiResponse, TasksApiResponse, DeliveriesApiResponse, DeliveryDetailsApiResponse, LabelsApiResponse, LabelsQueryParams, BundleScanApiResponse, BundleScanQueryParams, PackingListApiResponse, PackingListsQueryParams, PackingListDetailApiResponse, DispatchVerificationApiResponse, DispatchVerificationDetailApiResponse, DispatchVerificationQueryParams, MaterialRequestsApiResponse, MaterialRequestsQueryParams, MaterialRequest, BundleDetailsApiResponse } from "../types/projects.types";
+import type { ProjectsApiResponse, ProjectDetailsApiResponse, CalendarApiResponse, DrawingsApiResponse, TasksApiResponse, DeliveriesApiResponse, DeliveryDetailsApiResponse, LabelsApiResponse, LabelsQueryParams, BundleScanApiResponse, BundleScanQueryParams, PackingListApiResponse, PackingListsQueryParams, PackingListDetailApiResponse, DispatchVerificationApiResponse, DispatchVerificationDetailApiResponse, DispatchVerificationQueryParams, MaterialRequestsApiResponse, MaterialRequestsQueryParams, MaterialRequest, BundleDetailsApiResponse, DashboardApiResponse } from "../types/projects.types";
 
 export interface ProjectsQueryParams {
   page?: number;
@@ -34,6 +34,10 @@ export const getTasksApi = () => {
 
 export const getDeliveriesApi = () => {
   return axiosInstance.get<DeliveriesApiResponse>("/construction/deliveries");
+};
+
+export const getDashboardApi = () => {
+  return axiosInstance.get<DashboardApiResponse>("/construction/dashboard");
 };
 
 export const getDeliveryDetailsApi = (deliveryId: string) => {
