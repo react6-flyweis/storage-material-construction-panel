@@ -41,6 +41,7 @@ export default function DrawingAttachment() {
   const [openDrawingPreviewModel, setDrawingPreviewModel] = useState(false);
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const { search } = useSearch();
   const [localSearch, setLocalSearch] = useState("");
   const [localProjects, setLocalProjects] = useState<Project[]>([]);
@@ -306,6 +307,7 @@ export default function DrawingAttachment() {
                           className="hover:opacity-70"
                           onClick={() => {
                             setSelectedFile(file);
+                            setSelectedProject(project);
                             setSelectedFileId(file.key ?? "");
                             setDrawingPreviewModel(true);
                           }}
@@ -355,8 +357,10 @@ export default function DrawingAttachment() {
         onClose={() => {
           setDrawingPreviewModel(false);
           setSelectedFile(null);
+          setSelectedProject(null);
         }}
         file={selectedFile}
+        project={selectedProject}
       />
     </>
   );

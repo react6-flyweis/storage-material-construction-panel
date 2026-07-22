@@ -15,6 +15,14 @@ type DrawingPreviewModalProps = {
     name: string;
     size: string;
     status: string;
+    key?: string;
+  } | null;
+  project?: {
+    name: string;
+    code: string;
+    uploadedBy: string;
+    location: string;
+    updatedOn: string;
   } | null;
 };
 
@@ -22,7 +30,34 @@ export default function DrawingPreviewModal({
   open,
   onClose,
   fileId,
+  file,
+  project,
 }: DrawingPreviewModalProps) {
+  const currentStatus = file?.status || fileId;
+  const isPdf = Boolean(
+    file?.name?.toLowerCase().endsWith(".pdf") || 
+    file?.key?.toLowerCase().includes(".pdf")
+  );
+
+  const getImageSrc = () => {
+    if (file?.key && (file.key.startsWith("http") || file.key.startsWith("blob:"))) {
+      return file.key;
+    }
+    if (currentStatus === "Approved") return ApprovedImg;
+    if (currentStatus === "Revision Required" || currentStatus === "Revision") return RevisionImg;
+    return PendingImg;
+  };
+
+  const handleDownload = () => {
+    if (file?.key) {
+      const a = document.createElement("a");
+      a.href = file.key;
+      a.download = file.name || "drawing";
+      a.target = "_blank";
+      a.click();
+    }
+  };
+
   return (
     <Modal
       open={open}
@@ -33,23 +68,23 @@ export default function DrawingPreviewModal({
           <div className="flex md:flex-row flex-col justify-start gap-4 md:items-center">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-[#111827]">
-                Architectural Plans
+                {file?.name || project?.name || "Architectural Plans"}
               </h2>
-              <p className="text-sm text-[#6B7280]">PEB-1021</p>
+              <p className="text-sm text-[#6B7280]">{project?.code || "—"}</p>
             </div>
 
             <div className="flex flex-wrap items-center lg:gap-10 gap-3 text-sm text-[#111827]">
               <div>
                 <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Location</p>
-                <p>Pune, Maharashtra</p>
+                <p>{project?.location || "—"}</p>
               </div>
               <div>
                 <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Uploaded By</p>
-                <p>Rahul Sharma</p>
+                <p>{project?.uploadedBy || "—"}</p>
               </div>
               <div>
-                <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Received on</p>
-                <p>25-April-2025</p>
+                <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Last Updated</p>
+                <p>{project?.updatedOn || "—"}</p>
               </div>
             </div>
           </div>
@@ -62,48 +97,52 @@ export default function DrawingPreviewModal({
           />
         </div>
 
-        <div className="bg-[#F9FAFB] flex justify-center items-center lg:px-6 px-3 py-4">
-          <img
-            src={
-                fileId === "Approved"
-                ? ApprovedImg
-                : fileId === "Revision"
-                ? RevisionImg
-                : PendingImg
-            }
-            alt="drawing"
-            className="max-h-[450px] object-contain"
+        <div className="bg-[#F9FAFB] flex justify-center items-center lg:px-6 px-3 py-4 w-full min-h-[550px]">
+          {isPdf && file?.key ? (
+            <iframe
+              src={`${file.key}#toolbar=0`}
+              title={file?.name || "PDF Preview"}
+              className="w-full h-[70vh] rounded-lg border border-gray-200"
             />
-
+          ) : (
+            <img
+              src={getImageSrc()}
+              alt={file?.name || "drawing preview"}
+              className="max-h-[70vh] w-full object-contain"
+            />
+          )}
         </div>
 
         <div className="lg:px-6 px-3 py-4 flex sm:flex-row flex-col gap-3 sm:justify-between items-end sm:items-center border-t">
-          <button className="flex items-center gap-2 bg-[#9CA3AF] text-white px-5 py-1 rounded-full w-fit">
+          <button 
+            onClick={handleDownload}
+            className="flex items-center gap-2 bg-[#2563EB] text-white px-5 py-1.5 rounded-full w-fit hover:bg-blue-700 transition"
+          >
             <img src={DownloadIcon} className="brightness-[10]" alt="" />
             Download
           </button>
 
           <div className="flex gap-3 items-center">
-            {fileId !== "Pending" && (
+            {currentStatus !== "Pending Review" && currentStatus !== "Pending" && (
               <>
-                <p className="text-black text-sm">31-April-2025</p>
+                <p className="text-black text-sm">{project?.updatedOn || "—"}</p>
               </>
             )}
-            {fileId !== "Approved" && (
+            {currentStatus !== "Approved" && (
               <button className="bg-[#F59E0B] text-white px-6 py-1 rounded-full">
-                {fileId == "Revision"
+                {currentStatus === "Revision Required" || currentStatus === "Revision"
                   ? "Sent for Revision"
                   : "Revision Required"}
               </button>
             )}
-            {fileId !== "Revision" && (
+            {currentStatus !== "Revision Required" && currentStatus !== "Revision" && (
               <button className="bg-[#22C55E] text-white px-6 py-1 rounded-full">
-                {fileId == "Approved" ? "Approved" : "Approve"}
+                {currentStatus === "Approved" ? "Approved" : "Approve"}
               </button>
             )}
           </div>
         </div>
-        {fileId == "Pending" && (
+        {(currentStatus === "Pending Review" || currentStatus === "Pending") && (
           <div className="lg:px-6 px-3 py-3 border-t flex sm:gap-4 gap-2 items-center">
             <div className="h-[40px] border rounded-lg flex items-center gap-1 flex-1 sm:px-4 px-2">
               <input
